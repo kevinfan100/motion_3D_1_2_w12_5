@@ -1,27 +1,27 @@
-% verify_eq13_estimator.m — Eq. 13 verification using 3-state estimator
+% verify_eq13_estimator.m — Eq. 13 verification: two delay-compensation methods
 %
-% Uses the paper's estimator structure (dx1→dx2→dx3) with pole placement
-% to compensate the 2-step measurement delay.
+% Method 1: 3-state estimator (dz1->dz2->dz3 + pole placement)
+% Method 2: d-step delay control law (Eq. 17, expanded form)
+%
 % Simplified conditions: known gamma_N, no disturbance, stationary probe.
-%
-% Comparison with Smith Predictor (verify_eq13.m) is included.
+% Goal: verify both methods recover a_x via Eq. 13, and compare accuracy.
 
 clear; clc; close all;
 
 %% ===== Physical Parameters =====
-Ts      = 1/1600;
-kb      = 1.3806503e-23;
-T_temp  = 310.15;
-R_probe = 2.25e-6;
-eta     = 0.001;
-gammaN  = 0.0425;
+Ts      = 1/1600;            % sampling time [s]
+kb      = 1.3806503e-23;     % Boltzmann constant [J/K]
+T_temp  = 310.15;            % temperature [K]
+R_probe = 2.25e-6;           % probe radius [m]
+eta     = 0.001;             % viscosity [Pa*s]
+gammaN  = 0.0425;            % friction coefficient [pN*s/um]
 
-a_x      = Ts / gammaN;
-gammaN_SI = 6 * pi * eta * R_probe;
-sigma_fT  = sqrt(4 * kb * T_temp * gammaN_SI / Ts * 1e24);
+a_x      = Ts / gammaN;                                    % mobility [um/pN]
+sigma_fT  = sqrt(4 * kb * T_temp * (gammaN * 1e-6) / Ts * 1e24); % thermal force std [pN]
 
 %% ===== Estimator: Pole Placement =====
-lambda_e = 0.3;   % estimator pole
+% All 3 estimator poles at lambda_e; expand (z - lambda_e)^3 for gains L1, L2, L3
+lambda_e = 0.3;
 
 L1 = 1 - 3*lambda_e;
 L2 = 1 - 3*lambda_e + 3*lambda_e^2;
@@ -31,22 +31,22 @@ fprintf('Estimator pole placement: lambda_e = %.1f\n', lambda_e);
 fprintf('L = [%.3f, %.3f, %.3f]\n\n', L1, L2, L3);
 
 %% ===== Simulation Parameters =====
-lc_sim   = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+lc_sim   = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9];  % lambda_c > lambda_e = 0.3
 n_lc     = length(lc_sim);
 N        = 80000;
 ss_start = 40000;
-z_d      = 25;
+z_d      = 25;               % desired position [um]
 
 % Dense theory curve
 lc_dense = 0.1:0.005:0.95;
 C_dense  = 2 + 1./(1 - lc_dense.^2);
-sig2_theory_dense = C_dense * 4 * kb * T_temp * a_x * 1e18;
+sig2_theory_dense = C_dense * 4 * kb * T_temp * a_x * 1e18;  % [um^2]
 
 %% ===== Storage =====
-sig2_est  = zeros(1, n_lc);   % estimator method
-sig2_sp   = zeros(1, n_lc);   % Smith Predictor (comparison)
-axm_est   = zeros(1, n_lc);
-axm_sp    = zeros(1, n_lc);
+sig2_est   = zeros(1, n_lc);   % estimator method
+sig2_eq17  = zeros(1, n_lc);   % d-step delay control law (Eq. 17)
+axm_est    = zeros(1, n_lc);   % recovered a_x from estimator [um/pN]
+axm_eq17   = zeros(1, n_lc);   % recovered a_x from Eq. 17 [um/pN]
 
 %% ===== Main Loop =====
 for idx = 1:n_lc
@@ -56,63 +56,64 @@ for idx = 1:n_lc
 
     % --- Method 1: 3-state estimator ---
     rng(42 + idx);
-    fT = sigma_fT * randn(N, 1);
+    fT = sigma_fT * randn(N, 1);          % thermal force [pN]
 
-    z = z_d;
+    z = z_d;                               % position [um]
     z_hist = zeros(N, 1);  z_hist(1) = z_d;
     dzm_all_est = zeros(N, 1);
 
-    % Estimator states
-    dx1_hat = 0;  dx2_hat = 0;  dx3_hat = 0;
+    % Estimator states: dz = z_d - z (displacement error [um])
+    dz1_hat = 0;  dz2_hat = 0;  dz3_hat = 0;
 
     for k = 1:N
-        % Delayed measurement
+        % Delayed measurement (d = 2 steps)
         if k >= 3, z_del = z_hist(k-2); else, z_del = z_d; end
-        dzm = z_d - z_del;
+        dzm = z_d - z_del;                % [um]
         dzm_all_est(k) = dzm;
 
         % Innovation
-        innov = dzm - dx1_hat;
+        innov = dzm - dz1_hat;
 
-        % Control law (uses dx3_hat)
-        fd_k = (1/a_x) * (1 - lc) * dx3_hat;
+        % Control law (uses dz3_hat = current displacement estimate)
+        fd_k = (1/a_x) * (1 - lc) * dz3_hat;   % [pN]
 
         % Estimator update
-        dx1_new = dx2_hat      + L1 * innov;
-        dx2_new = dx3_hat      + L2 * innov;
-        dx3_new = lc * dx3_hat + L3 * innov;
-        dx1_hat = dx1_new;
-        dx2_hat = dx2_new;
-        dx3_hat = dx3_new;
+        dz1_new = dz2_hat      + L1 * innov;
+        dz2_new = dz3_hat      + L2 * innov;
+        dz3_new = lc * dz3_hat + L3 * innov;
+        dz1_hat = dz1_new;
+        dz2_hat = dz2_new;
+        dz3_hat = dz3_new;
 
-        % Plant
+        % Plant dynamics: dz = a_x * (fd + fT) [um]
         z_new = z + a_x * (fd_k + fT(k));
         if k < N, z_hist(k+1) = z_new; end
         z = z_new;
     end
 
     ss = ss_start:N;
-    sig2_est(idx) = var(dzm_all_est(ss));
-    axm_est(idx) = (sig2_est(idx) * 1e-12) / den_eq13 * 1e-6;
+    sig2_est(idx) = var(dzm_all_est(ss));                     % [um^2]
+    axm_est(idx) = (sig2_est(idx) * 1e-12) / den_eq13 * 1e-6; % [um/pN]
 
-    % --- Method 2: Smith Predictor (comparison, same noise) ---
+    % --- Method 2: d-step delay control law, Eq. 17 (same noise) ---
     rng(42 + idx);
-    fT = sigma_fT * randn(N, 1);
+    fT = sigma_fT * randn(N, 1);          % thermal force [pN]
 
     z = z_d;
     z_hist = zeros(N, 1);  z_hist(1) = z_d;
     fd_hist = zeros(N, 1);
-    dzm_all_sp = zeros(N, 1);
+    dzm_all_eq17 = zeros(N, 1);
 
     for k = 1:N
         if k >= 3, z_del = z_hist(k-2); else, z_del = z_d; end
-        dzm = z_d - z_del;
-        dzm_all_sp(k) = dzm;
+        dzm = z_d - z_del;                % [um]
+        dzm_all_eq17(k) = dzm;
 
+        % Eq. 17: d-step delay control law (d=2, stationary)
+        %   fd[k] = (1/a_x)*(1-lc)*dzm[k] - (1-lc)*sum(fd[k-i], i=1..d)
         if k >= 3, fk2 = fd_hist(k-2); else, fk2 = 0; end
         if k >= 2, fk1 = fd_hist(k-1); else, fk1 = 0; end
-        e_hat = dzm - a_x * (fk2 + fk1);
-        fd_k = (1/a_x) * (1 - lc) * e_hat;
+        fd_k = (1/a_x)*(1-lc)*dzm - (1-lc)*(fk1 + fk2);  % [pN]
         fd_hist(k) = fd_k;
 
         z_new = z + a_x * (fd_k + fT(k));
@@ -120,28 +121,31 @@ for idx = 1:n_lc
         z = z_new;
     end
 
-    sig2_sp(idx) = var(dzm_all_sp(ss));
-    axm_sp(idx) = (sig2_sp(idx) * 1e-12) / den_eq13 * 1e-6;
+    sig2_eq17(idx) = var(dzm_all_eq17(ss));                     % [um^2]
+    axm_eq17(idx) = (sig2_eq17(idx) * 1e-12) / den_eq13 * 1e-6; % [um/pN]
 end
 
 %% ===== Results Table =====
-rel_err_est = abs(axm_est - a_x) / a_x * 100;
-rel_err_sp  = abs(axm_sp  - a_x) / a_x * 100;
+% axm_est / axm_eq17: a_x recovered via Eq. 13 [um/pN]
+% err_est / err_eq17: relative error vs true a_x [%]
+rel_err_est  = abs(axm_est  - a_x) / a_x * 100;
+rel_err_eq17 = abs(axm_eq17 - a_x) / a_x * 100;
 
-fprintf('=====================================================\n');
-fprintf('  Eq. 13 Verification: Estimator vs Smith Predictor\n');
-fprintf('=====================================================\n\n');
+fprintf('==========================================================\n');
+fprintf('  Eq. 13 verification: 3-state estimator vs Eq. 17\n');
+fprintf('==========================================================\n\n');
 fprintf('%-6s  %-12s %-12s %-10s %-10s\n', ...
-    'lc', 'axm_est', 'axm_SP', 'err_est', 'err_SP');
-fprintf('%s\n', repmat('-', 1, 52));
+    'lc', 'axm_est', 'axm_eq17', 'err_est', 'err_eq17');
+fprintf('%s\n', repmat('-', 1, 54));
 for idx = 1:n_lc
     fprintf('%-6.1f  %-12.5f %-12.5f %-10.2f %-10.2f\n', ...
-        lc_sim(idx), axm_est(idx), axm_sp(idx), ...
-        rel_err_est(idx), rel_err_sp(idx));
+        lc_sim(idx), axm_est(idx), axm_eq17(idx), ...
+        rel_err_est(idx), rel_err_eq17(idx));
 end
 fprintf('\na_x_true = %.5f um/pN\n', a_x);
 
 %% ===== Lambda_e sensitivity test (lc = 0.7) =====
+% Test how estimator pole lambda_e affects a_x estimation accuracy
 lc_test = 0.7;
 le_list = [0.1, 0.2, 0.3, 0.5, 0.7];
 axm_le = zeros(size(le_list));
@@ -158,17 +162,17 @@ for j = 1:length(le_list)
     fT = sigma_fT * randn(N, 1);
     z = z_d; z_hist = zeros(N,1); z_hist(1) = z_d;
     dzm_all = zeros(N,1);
-    dx1h = 0; dx2h = 0; dx3h = 0;
+    dz1h = 0; dz2h = 0; dz3h = 0;
 
     for k = 1:N
         if k>=3, z_del=z_hist(k-2); else, z_del=z_d; end
         dzm = z_d - z_del; dzm_all(k) = dzm;
-        innov = dzm - dx1h;
-        fd_k = (1/a_x)*(1-lc_test)*dx3h;
-        dx1h_n = dx2h + L1t*innov;
-        dx2h_n = dx3h + L2t*innov;
-        dx3h_n = lc_test*dx3h + L3t*innov;
-        dx1h = dx1h_n; dx2h = dx2h_n; dx3h = dx3h_n;
+        innov = dzm - dz1h;
+        fd_k = (1/a_x)*(1-lc_test)*dz3h;
+        dz1h_n = dz2h + L1t*innov;
+        dz2h_n = dz3h + L2t*innov;
+        dz3h_n = lc_test*dz3h + L3t*innov;
+        dz1h = dz1h_n; dz2h = dz2h_n; dz3h = dz3h_n;
         z_new = z + a_x*(fd_k + fT(k));
         if k<N, z_hist(k+1)=z_new; end; z=z_new;
     end
@@ -182,7 +186,7 @@ for j = 1:length(le_list)
         abs(axm_le(j)-a_x)/a_x*100);
 end
 
-%% ===== Figure 1: Main result (same format as before) =====
+%% ===== Figure 1: Main result =====
 fig1 = figure('Position', [50 50 700 750], 'Color', 'w');
 
 ax1 = subplot(2,1,1);
@@ -206,7 +210,11 @@ xlabel('\lambda_c', 'FontSize', 18, 'FontWeight', 'bold');
 ylabel('a_{xm}  (\mum/pN)', 'FontSize', 16, 'FontWeight', 'bold');
 set(ax2, 'FontSize', 15, 'FontWeight', 'bold', 'LineWidth', 2, ...
     'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
-xlim([0.1 1.0]); ylim([0.012 0.018]);
+xlim([0.1 1.0]);
+% Auto ylim to include both theory line and simulation data
+yl_lo = min([a_x, min(axm_est)]) * 0.9;
+yl_hi = max([a_x, max(axm_est)]) * 1.1;
+ylim([yl_lo yl_hi]);
 set(ax2, 'Position', [0.13 0.08 0.82 0.38]);
 
 lg = legend(ax1, [h1a, h1b], {'Theory', 'Simulation'}, ...
@@ -226,7 +234,7 @@ xlabel('\lambda_c', 'FontSize', 16, 'FontWeight', 'bold');
 ylabel('Relative Error (%)', 'FontSize', 14, 'FontWeight', 'bold');
 set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, ...
     'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
-ylim([0 3]);
+ylim([0 max(rel_err_est)*1.2]);
 saveas(fig2, 'fig_estimator_error.png');
 
 %% ===== Figure 3: Lambda_e sensitivity =====
@@ -239,7 +247,7 @@ xlabel('\lambda_e', 'FontSize', 16, 'FontWeight', 'bold');
 ylabel('a_{xm}  (\mum/pN)', 'FontSize', 14, 'FontWeight', 'bold');
 set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, ...
     'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
-ylim([0.012 0.018]);
+ylim([0.012 max(axm_le)*1.1]);
 lg3 = legend('Simulation', 'a_x true', 'Location', 'north', ...
     'Orientation', 'horizontal', 'FontSize', 13, 'FontWeight', 'bold', ...
     'Box', 'on', 'LineWidth', 1.5);
