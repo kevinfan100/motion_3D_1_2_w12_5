@@ -32,11 +32,8 @@ Avar   = 0.05;                  % deterministic/stochastic separation
 Avar22 = 0.05;                  % stochastic residual mean tracking
 Avar3  = 0.05;                  % stochastic residual mean-square tracking
 
-% 3-state estimator pole
+% 3-state estimator pole (gains depend on lc, computed inside loop)
 lambda_e = 0.3;
-L1 = 1 - 3*lambda_e;
-L2 = 1 - 3*lambda_e + 3*lambda_e^2;
-L3 = (1 - lambda_e)^3;
 
 % 7-state EKF parameters (from Simulink Parameters block)
 beta_ekf = 0.5;                 % w1-w2 estimator parameter
@@ -145,6 +142,11 @@ for idx = 1:n_lc
     % =====================================================================
     % METHOD 2: 3-state estimator (pole placement)
     % =====================================================================
+    % Observer gains (closed-loop A(3,3)=lc pole placement)
+    L1 = lc - 3*lambda_e;
+    L2 = lc^2 - 3*lc*lambda_e + 3*lambda_e^2;
+    L3 = (lc - lambda_e)^3;
+
     rng(42 + idx);
     fT = sigma_fT * randn(N, 1);
 
@@ -299,18 +301,21 @@ for idx = 1:n_lc
         Pfz = Fe_cl * Pz * Fe_cl' + QQ_fix;
         Pfz = 0.5*(Pfz + Pfz');
 
-        % State update
-        inj = Lk * esti_error;
-        dz1_hat = dz2_hat + inj(1);
-        dz2_hat = dz3_hat + inj(2);
-        dz3_hat = lc * dz3_hat + inj(3);
-        zD1_hat = (1+beta_ekf)*zD1_hat - beta_ekf*zD2_hat + inj(4);
-        zD2_hat = zD1_hat + inj(5);
-        az1_hat = (1+beta_ekf)*az1_hat - beta_ekf*az2_hat + inj(6);
-        az2_hat = az1_hat + inj(7);
-
-        % Control law: use KNOWN a_x
+        % Control law: use KNOWN a_x and CURRENT dz3_hat (before update)
         fd_k = (1/a_x) * (1 - lc) * dz3_hat;
+
+        % State update (use temp variables to avoid sequential-assignment bug)
+        inj = Lk * esti_error;
+        dz1_new = dz2_hat + inj(1);
+        dz2_new = dz3_hat + inj(2);
+        dz3_new = lc * dz3_hat + inj(3);
+        zD1_new = (1+beta_ekf)*zD1_hat - beta_ekf*zD2_hat + inj(4);
+        zD2_new = zD1_hat + inj(5);
+        az1_new = (1+beta_ekf)*az1_hat - beta_ekf*az2_hat + inj(6);
+        az2_new = az1_hat + inj(7);
+        dz1_hat = dz1_new; dz2_hat = dz2_new; dz3_hat = dz3_new;
+        zD1_hat = zD1_new; zD2_hat = zD2_new;
+        az1_hat = az1_new; az2_hat = az2_new;
 
         z_new = z + a_x * (fd_k + fT(k));
         if k < N, z_hist(k+1) = z_new; end

@@ -20,15 +20,11 @@ a_x      = Ts / gammaN;                                    % mobility [um/pN]
 sigma_fT  = sqrt(4 * kb * T_temp * (gammaN * 1e-6) / Ts * 1e24); % thermal force std [pN]
 
 %% ===== Estimator: Pole Placement =====
-% All 3 estimator poles at lambda_e; expand (z - lambda_e)^3 for gains L1, L2, L3
+% All 3 estimator poles at lambda_e; gains derived from A(3,3) = lc:
+%   L1 = lc - 3*le,  L2 = lc^2 - 3*lc*le + 3*le^2,  L3 = (lc - le)^3
+% Gains depend on lc, so they are computed inside the main loop.
 lambda_e = 0.3;
-
-L1 = 1 - 3*lambda_e;
-L2 = 1 - 3*lambda_e + 3*lambda_e^2;
-L3 = (1 - lambda_e)^3;
-
-fprintf('Estimator pole placement: lambda_e = %.1f\n', lambda_e);
-fprintf('L = [%.3f, %.3f, %.3f]\n\n', L1, L2, L3);
+fprintf('Estimator pole placement: lambda_e = %.1f\n\n', lambda_e);
 
 %% ===== Simulation Parameters =====
 lc_sim   = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9];  % lambda_c > lambda_e = 0.3
@@ -55,6 +51,11 @@ for idx = 1:n_lc
     den_eq13 = 4 * kb * T_temp * C_lc;
 
     % --- Method 1: 3-state estimator ---
+    % Observer gains (closed-loop A(3,3)=lc pole placement)
+    L1 = lc - 3*lambda_e;
+    L2 = lc^2 - 3*lc*lambda_e + 3*lambda_e^2;
+    L3 = (lc - lambda_e)^3;
+
     rng(42 + idx);
     fT = sigma_fT * randn(N, 1);          % thermal force [pN]
 
@@ -74,7 +75,8 @@ for idx = 1:n_lc
         % Innovation
         innov = dzm - dz1_hat;
 
-        % Control law (uses dz3_hat = current displacement estimate)
+        % Control law: fd = (1/a_x)*[(z_d[k]-z_d[k-1]) + (1-lc)*dz3_hat]
+        % Feedforward term is 0 for stationary z_d.
         fd_k = (1/a_x) * (1 - lc) * dz3_hat;   % [pN]
 
         % Estimator update
@@ -154,9 +156,9 @@ den_test = 4 * kb * T_temp * C_test;
 
 for j = 1:length(le_list)
     le = le_list(j);
-    L1t = 1 - 3*le;
-    L2t = 1 - 3*le + 3*le^2;
-    L3t = (1 - le)^3;
+    L1t = lc_test - 3*le;
+    L2t = lc_test^2 - 3*lc_test*le + 3*le^2;
+    L3t = (lc_test - le)^3;
 
     rng(99);
     fT = sigma_fT * randn(N, 1);
