@@ -37,10 +37,9 @@ gammaN  = 0.0425;               % nominal Stokes drag [pN*s/um]
 % Derived quantities
 a_x_true = Ts / gammaN;         % theoretical motion gain [um/pN]
 
-% Thermal noise force
-gammaN_SI    = 6 * pi * eta * R;                       % [N*s/m]
-sigma2_fT_SI = 4 * kb * T_temp * gammaN_SI / Ts;      % [N^2]
-sigma_fT_pN  = sqrt(sigma2_fT_SI * 1e24);             % [pN]
+% Thermal noise force (use gammaN * 1e-6 for consistency)
+sigma2_fT_SI = 4 * kb * T_temp * (gammaN * 1e-6) / Ts;  % [N^2]
+sigma_fT_pN  = sqrt(sigma2_fT_SI * 1e24);                % [pN]
 
 % IIR filter coefficients (from Stateflow chart, for Method B)
 Avar   = 0.45;    % deterministic component filter

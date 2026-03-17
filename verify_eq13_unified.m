@@ -17,9 +17,8 @@ R_probe = 2.25e-6;              % probe radius [m]
 eta     = 0.001;                % dynamic viscosity [Pa*s]
 gammaN  = 0.0425;               % nominal Stokes drag [pN*s/um]
 
-a_x      = Ts / gammaN;                                      % [um/pN]
-gammaN_SI = 6 * pi * eta * R_probe;                           % [N*s/m]
-sigma_fT  = sqrt(4 * kb * T_temp * gammaN_SI / Ts * 1e24);   % thermal force std [pN]
+a_x      = Ts / gammaN;                                           % [um/pN]
+sigma_fT  = sqrt(4 * kb * T_temp * (gammaN * 1e-6) / Ts * 1e24); % thermal force std [pN]
 
 %% ===== Simulation Parameters =====
 N        = 80000;
