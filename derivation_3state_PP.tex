@@ -1,0 +1,152 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,array}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+% ── Notation (z-axis, cf. paper x-axis) ──────────────────────────────
+\newcommand{\dz}{\delta z}
+\newcommand{\dzhat}[1]{\delta\hat{z}_{#1}}
+\newcommand{\epsz}{e_{\delta z}}
+\newcommand{\fdz}{f_{dz}}
+\newcommand{\fTz}{f_{Tz}}
+\newcommand{\az}{a_z}
+\newcommand{\pz}{p_z}
+\newcommand{\lc}{\lambda_c}
+\renewcommand{\le}{\lambda_e}
+\newcommand{\Ts}{\Delta t}
+\newcommand{\cz}{\gamma_z}
+\newcommand{\cN}{c_N}
+\newcommand{\kB}{k_B}
+
+\title{3-State Prediction Observer --- Derivation (z-axis)}
+\author{}\date{}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+% =====================================================================
+\section{Plant and Problem Setup}
+% =====================================================================
+
+The z-axis discrete-time plant is
+\begin{equation}
+  \pz[k\!+\!1] = \pz[k]
+    + \az[k]\bigl(\fdz[k] + \fTz[k]\bigr)
+    + z_D[k]
+  \label{eq:plant}
+\end{equation}
+
+Tracking error $\dz[k]\triangleq z_d[k]-\pz[k]$:
+\begin{equation}
+  \dz[k\!+\!1]
+  = \bigl(z_d[k\!+\!1]\!-\!z_d[k]\bigr)
+    + \dz[k] - \az\,\fdz[k] - \az\,\fTz[k] - z_D[k].
+  \label{eq:error-dyn}
+\end{equation}
+
+Measurement delay $d\!=\!2$:\;$y[k]=\dz[k\!-\!2]$.
+
+Control objective:\;$\dz[k\!+\!1]=\lc\,\dz[k]+\text{noise}$,\;$|\lc|<1$.
+
+% =====================================================================
+\section{Control Law}
+% =====================================================================
+
+From~\eqref{eq:error-dyn} and the objective:
+\begin{equation}
+  \boxed{\;
+    \fdz[k] = \frac{1}{\az}\Bigl[
+      \bigl(z_d[k\!+\!1]-z_d[k]\bigr)
+      + (1-\lc)\,\dzhat{3}[k]\Bigr]
+  \;}
+  \label{eq:control}
+\end{equation}
+
+% =====================================================================
+\section{3-State Prediction Observer}
+% =====================================================================
+
+\paragraph{State.}
+True state and estimate:
+\begin{equation}
+  \bm{x}[k]
+  =\begin{bmatrix}\dz_1[k]\\\dz_2[k]\\\dz_3[k]\end{bmatrix}
+  \triangleq
+  \begin{bmatrix}\dz[k\!-\!2]\\\dz[k\!-\!1]\\\dz[k]\end{bmatrix},
+  \qquad
+  \hat{\bm{x}}[k]
+  =\begin{bmatrix}\dzhat{1}[k]\\\dzhat{2}[k]\\\dzhat{3}[k]\end{bmatrix}.
+  \label{eq:state}
+\end{equation}
+
+\paragraph{Transition model}
+(closed-loop: $\dz_3[k\!+\!1]=\lc\,\dz_3[k]$):
+\begin{equation}
+  A=\begin{bmatrix}0&1&0\\0&0&1\\0&0&\lc\end{bmatrix},\qquad
+  C=\begin{bmatrix}1&0&0\end{bmatrix},\qquad
+  y[k]=C\,\bm{x}[k].
+  \label{eq:AC}
+\end{equation}
+
+\paragraph{Observer update.}
+$\hat{\bm{x}}[k]$ incorporates $y[k\!-\!1]$;\;
+$y[k]$ produces $\hat{\bm{x}}[k\!+\!1]$:
+\begin{equation}
+  \boxed{\;
+    \hat{\bm{x}}[k\!+\!1]
+    = A\,\hat{\bm{x}}[k] + \bm{L}\,e_{z1}[k],
+    \qquad
+    e_{z1}[k] = y[k]-\dzhat{1}[k]
+  \;}
+  \label{eq:observer}
+\end{equation}
+where $\bm{L}=[L_1,\,L_2,\,L_3]^\top$:
+\begin{align}
+  \dzhat{1}[k\!+\!1]
+    &= \dzhat{2}[k] + L_1\,e_{z1}[k], \notag\\
+  \dzhat{2}[k\!+\!1]
+    &= \dzhat{3}[k] + L_2\,e_{z1}[k],
+    \label{eq:obs-expand}\\
+  \dzhat{3}[k\!+\!1]
+    &= \lc\,\dzhat{3}[k] + L_3\,e_{z1}[k]. \notag
+\end{align}
+
+% =====================================================================
+\section{Observer Gain --- Pole Placement}
+% =====================================================================
+
+Estimation error $\bm{e}[k]=\bm{x}[k]-\hat{\bm{x}}[k]$:
+\begin{equation}
+  \bm{e}[k\!+\!1]=(A-\bm{L}C)\,\bm{e}[k]+\bm{w}[k].
+  \label{eq:obs-error}
+\end{equation}
+
+Place all eigenvalues of $A\!-\!\bm{L}C$ at $\le$:
+\[
+  A-\bm{L}C
+  =\begin{bmatrix}-L_1&1&0\\-L_2&0&1\\-L_3&0&\lc\end{bmatrix},
+\]
+\begin{align}
+  \det(zI\!-\!A\!+\!\bm{L}C)
+  &= (z\!+\!L_1)\,z\,(z\!-\!\lc)
+     + L_2(z\!-\!\lc) + L_3 \notag\\
+  &= z^3 + (L_1\!-\!\lc)\,z^2
+     + (-L_1\lc\!+\!L_2)\,z
+     + (-L_2\lc\!+\!L_3).
+  \label{eq:char}
+\end{align}
+
+Matching $(z-\le)^3 = z^3 - 3\le\,z^2 + 3\le^2\,z - \le^3$:
+\begin{equation}
+  \boxed{\;
+    L_1 = \lc - 3\le,\quad
+    L_2 = \lc^2 - 3\lc\le + 3\le^2,\quad
+    L_3 = (\lc - \le)^3
+  \;}
+  \label{eq:gains}
+\end{equation}
+
+\end{document}
