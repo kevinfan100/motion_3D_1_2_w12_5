@@ -329,7 +329,7 @@ fd[k] = (1/a_x)*[(z_d[k]-z_d[k-1]) + (1-lc)*dz3_hat - zD1_hat]
 | eps             | 0 (exact)      | Large          | Smaller        |
 | Disturbance     | None           | None           | Yes (zD1_hat)  |
 | a_x known?      | Yes            | Yes            | No (estimates) |
-| Eq.13 accuracy  | <1%            | 30-56%         | 5-8%           |
+| Eq.13 accuracy  | <3%            | +21~35%        | +5~8%          |
 | Moving traj     | Modify Eq.17   | Add feedforward| Built-in       |
 | Complexity      | Low            | Medium         | High           |
 
@@ -349,3 +349,41 @@ fd[k] = (1/a_x)*[(z_d[k]-z_d[k-1]) + (1-lc)*dz3_hat - zD1_hat]
 
 4. **Only Eq.17 (no observer) can exactly verify Eq.13**
    Because eps = 0, closed-loop is pure AR(1)
+
+---
+
+## Part 10: Simulation Results (Stationary z_d=25um, le=0.3)
+
+Correct execution order: observer update FIRST, then control.
+
+### 3-state PP vs Eq.17
+
+| lc  | C(lc)  | sig2_theory  | sig2_PP      | a_xm PP  | err PP  | a_xm Eq17 | err Eq17 |
+|-----|--------|-------------|-------------|----------|---------|-----------|----------|
+| 0.4 | 3.190  | 8.036e-04   | 1.046e-03   | 0.01914  | +30.2%  | 0.01451   | -1.3%    |
+| 0.5 | 3.333  | 8.396e-04   | 1.116e-03   | 0.01954  | +32.9%  | 0.01489   | +1.3%    |
+| 0.6 | 3.562  | 8.974e-04   | 1.210e-03   | 0.01983  | +34.8%  | 0.01491   | +1.4%    |
+| 0.7 | 3.961  | 9.977e-04   | 1.331e-03   | 0.01962  | +33.4%  | 0.01486   | +1.1%    |
+| 0.8 | 4.778  | 1.204e-03   | 1.614e-03   | 0.01972  | +34.1%  | 0.01518   | +3.2%    |
+| 0.9 | 7.263  | 1.830e-03   | 2.214e-03   | 0.01780  | +21.0%  | 0.01469   | -0.1%    |
+
+### Execution order matters
+
+Control must be computed AFTER observer update (consistent with Simulink EKF):
+1. Receive measurement y[k]
+2. Innovation = y[k] - dz1_hat
+3. Observer update → new dz3_hat (incorporates new measurement)
+4. Control: fd[k] = (1/a_x)*(1-lc)*dz3_hat (uses updated estimate)
+5. Plant update
+
+### Observer gain note
+
+Original gains (L1=1-3le, L2=1-3le+3le^2, L3=(1-le)^3) assume A(3,3)=1,
+which does not match the prediction model A(3,3)=lc. However, these gains
+produce larger L3 values, giving better practical estimation performance
+than the theoretically correct gains (L1=lc-3le, L3=(lc-le)^3), which
+have very small L3 when lc is close to le.
+
+### Figure
+
+- `fig_3PP_eq13_final.png` — a_xm vs lc: 3-state PP (+21~35%) vs Eq.17 (<3%)

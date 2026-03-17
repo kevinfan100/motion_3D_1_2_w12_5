@@ -81,8 +81,41 @@ With noise correction:
 4. **Stability**: lc <= 0.5 diverges with the current EKF+mgain_z control law.
    Only lc = 0.6, 0.7, 0.8, 0.9 were stable for 50s.
 
+## EKF 1.5% Error Explained: Two Cancelling Effects
+
+The apparent -1.5% error (vs Ts/gammaN) is a coincidental cancellation:
+
+| Effect | Direction | Magnitude |
+|--------|-----------|-----------|
+| c_perp=1.0675 lowers true a_x below Ts/gammaN | down | -6.3% |
+| EKF estimation error eps inflates Var(e) | up | +5.2% |
+| **Net** | | **-1.5%** |
+
+The EKF does reduce eps compared to 3-state PP:
+- Var(eps) EKF:    4.95e-04 um^2 (bias: +1.4%)
+- Var(eps) 3-state PP: 9.04e-04 um^2 (bias: +2.6%)
+- Ratio: EKF is ~1.8x smaller
+
+## 3-State PP Eq.13 Verification (le=0.3, correct execution order)
+
+| lc  | a_xm PP  | err PP  | a_xm Eq17 | err Eq17 |
+|-----|----------|---------|-----------|----------|
+| 0.4 | 0.01914  | +30.2%  | 0.01451   | -1.3%    |
+| 0.5 | 0.01954  | +32.9%  | 0.01489   | +1.3%    |
+| 0.6 | 0.01983  | +34.8%  | 0.01491   | +1.4%    |
+| 0.7 | 0.01962  | +33.4%  | 0.01486   | +1.1%    |
+| 0.8 | 0.01972  | +34.1%  | 0.01518   | +3.2%    |
+| 0.9 | 0.01780  | +21.0%  | 0.01469   | -0.1%    |
+
+Root cause: observer estimation error eps adds (1-lc)*eps to error dynamics:
+```
+e[k+1] = lc*e[k] + (1-lc)*eps[k] + noise
+Var(e) = C(lc)*4kT*a_x + ((1-lc)/(1+lc))*Var(eps)
+```
+
 ## Figures
 
-- `fig_eq13_multi_lc_v2.png` — a_xm vs lc with Ts/gammaN reference line
+- `fig_eq13_multi_lc_v2.png` — Simulink EKF: a_xm vs lc with Ts/gammaN reference line
 - `fig_eq13_verify_fixed_traj.png` — Time series: Eq.13/IIR/EKF vs theory (lc=0.9)
 - `fig_eq13_verify_dzk2.png` — Tracking error dz_k2 time series (lc=0.9)
+- `fig_3PP_eq13_final.png` — 3-state PP vs Eq.17: a_xm vs lc
