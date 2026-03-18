@@ -82,28 +82,45 @@ True state and estimate:
   \label{eq:state}
 \end{equation}
 
-\paragraph{Transition model}
-(closed-loop: $\dz_3[k\!+\!1]=\lc\,\dz_3[k]$):
+\paragraph{Open-loop state dynamics.}
+From~\eqref{eq:error-dyn}, separating
+$\fdz$ and $\Delta z_d\!\triangleq\!z_d[k\!+\!1]\!-\!z_d[k]$
+as known inputs:
 \begin{equation}
-  A=\begin{bmatrix}0&1&0\\0&0&1\\0&0&\lc\end{bmatrix},\qquad
-  C=\begin{bmatrix}1&0&0\end{bmatrix},\qquad
-  y[k]=C\,\bm{x}[k].
+  \bm{x}[k\!+\!1]
+  = A\,\bm{x}[k]
+    + \bm{b}_u\,\fdz[k]
+    + \bm{b}_d\,\Delta z_d[k]
+    + \bm{w}[k]
+  \label{eq:open-loop}
+\end{equation}
+\begin{equation}
+  A=\begin{bmatrix}0&1&0\\0&0&1\\0&0&1\end{bmatrix},\quad
+  \bm{b}_u=\begin{bmatrix}0\\0\\-\az\end{bmatrix},\quad
+  \bm{b}_d=\begin{bmatrix}0\\0\\1\end{bmatrix},\quad
+  C=\begin{bmatrix}1&0&0\end{bmatrix}.
   \label{eq:AC}
 \end{equation}
+$A(3,3)\!=\!1$: without control, $\dz$ does not decay (open-loop).
 
-\paragraph{Observer update.}
-$\hat{\bm{x}}[k]$ incorporates $y[k\!-\!1]$;\;
-$y[k]$ produces $\hat{\bm{x}}[k\!+\!1]$:
+\paragraph{Observer.}
+Include all known inputs; $y[k]$ produces $\hat{\bm{x}}[k\!+\!1]$:
 \begin{equation}
   \boxed{\;
     \hat{\bm{x}}[k\!+\!1]
-    = A\,\hat{\bm{x}}[k] + \bm{L}\,e_{z1}[k],
-    \qquad
+    = A\,\hat{\bm{x}}[k]
+      + \bm{b}_u\,\fdz[k]
+      + \bm{b}_d\,\Delta z_d[k]
+      + \bm{L}\,e_{z1}[k],
+    \quad
     e_{z1}[k] = y[k]-\dzhat{1}[k]
   \;}
   \label{eq:observer}
 \end{equation}
-where $\bm{L}=[L_1,\,L_2,\,L_3]^\top$:
+$\bm{L}=[L_1,\,L_2,\,L_3]^\top$.
+\;Substituting~\eqref{eq:control} into the third row,
+$\bm{b}_u\,\fdz + \bm{b}_d\,\Delta z_d$ merges to
+$-(1\!-\!\lc)\,\dzhat{3}$:
 \begin{align}
   \dzhat{1}[k\!+\!1]
     &= \dzhat{2}[k] + L_1\,e_{z1}[k], \notag\\
@@ -118,33 +135,38 @@ where $\bm{L}=[L_1,\,L_2,\,L_3]^\top$:
 \section{Observer Gain --- Pole Placement}
 % =====================================================================
 
-Estimation error $\bm{e}[k]=\bm{x}[k]-\hat{\bm{x}}[k]$:
+Estimation error $\bm{e}[k]=\bm{x}[k]-\hat{\bm{x}}[k]$.
+\;Since plant~\eqref{eq:open-loop} and observer~\eqref{eq:observer}
+share the same known inputs $\fdz$ and $\Delta z_d$,
+these cancel in the subtraction:
 \begin{equation}
-  \bm{e}[k\!+\!1]=(A-\bm{L}C)\,\bm{e}[k]+\bm{w}[k].
+  \bm{e}[k\!+\!1]
+  = (A-\bm{L}C)\,\bm{e}[k]+\bm{w}[k].
   \label{eq:obs-error}
 \end{equation}
 
-Place all eigenvalues of $A\!-\!\bm{L}C$ at $\le$:
 \[
   A-\bm{L}C
-  =\begin{bmatrix}-L_1&1&0\\-L_2&0&1\\-L_3&0&\lc\end{bmatrix},
+  =\begin{bmatrix}-L_1&1&0\\-L_2&0&1\\-L_3&0&1\end{bmatrix}.
 \]
+
+Place all eigenvalues at $\le$:
 \begin{align}
   \det(zI\!-\!A\!+\!\bm{L}C)
-  &= (z\!+\!L_1)\,z\,(z\!-\!\lc)
-     + L_2(z\!-\!\lc) + L_3 \notag\\
-  &= z^3 + (L_1\!-\!\lc)\,z^2
-     + (-L_1\lc\!+\!L_2)\,z
-     + (-L_2\lc\!+\!L_3).
+  &= (z\!+\!L_1)\,z\,(z\!-\!1)
+     + L_2(z\!-\!1) + L_3 \notag\\
+  &= z^3 + (L_1\!-\!1)\,z^2
+     + (-L_1\!+\!L_2)\,z
+     + (-L_2\!+\!L_3).
   \label{eq:char}
 \end{align}
 
 Matching $(z-\le)^3 = z^3 - 3\le\,z^2 + 3\le^2\,z - \le^3$:
 \begin{equation}
   \boxed{\;
-    L_1 = \lc - 3\le,\quad
-    L_2 = \lc^2 - 3\lc\le + 3\le^2,\quad
-    L_3 = (\lc - \le)^3
+    L_1 = 1 - 3\le,\quad
+    L_2 = 1 - 3\le + 3\le^2,\quad
+    L_3 = (1 - \le)^3
   \;}
   \label{eq:gains}
 \end{equation}

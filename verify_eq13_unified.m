@@ -32,8 +32,11 @@ Avar   = 0.05;                  % deterministic/stochastic separation
 Avar22 = 0.05;                  % stochastic residual mean tracking
 Avar3  = 0.05;                  % stochastic residual mean-square tracking
 
-% 3-state estimator pole (gains depend on lc, computed inside loop)
+% 3-state estimator pole placement on F = A+G-LC (F(3,3)=1)
 lambda_e = 0.3;
+L1 = 1 - 3*lambda_e;
+L2 = 1 - 3*lambda_e + 3*lambda_e^2;
+L3 = (1 - lambda_e)^3;
 
 % 7-state EKF parameters (from Simulink Parameters block)
 beta_ekf = 0.5;                 % w1-w2 estimator parameter
@@ -142,11 +145,6 @@ for idx = 1:n_lc
     % =====================================================================
     % METHOD 2: 3-state estimator (pole placement)
     % =====================================================================
-    % Observer gains (closed-loop A(3,3)=lc pole placement)
-    L1 = lc - 3*lambda_e;
-    L2 = lc^2 - 3*lc*lambda_e + 3*lambda_e^2;
-    L3 = (lc - lambda_e)^3;
-
     rng(42 + idx);
     fT = sigma_fT * randn(N, 1);
 
