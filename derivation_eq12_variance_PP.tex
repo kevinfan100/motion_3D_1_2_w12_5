@@ -1,0 +1,136 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,array}
+\usepackage[hidelinks]{hyperref}
+
+% ── Notation (same as derivation_3state_PP.tex) ─────────────────────
+\newcommand{\dz}{\delta z}
+\newcommand{\dzhat}[1]{\delta\hat{z}_{#1}}
+\newcommand{\edz}{e_{\delta z}}
+\newcommand{\fdz}{f_{dz}}
+\newcommand{\fTz}{f_{Tz}}
+\newcommand{\az}{a_z}
+\newcommand{\lc}{\lambda_c}
+\renewcommand{\le}{\lambda_e}
+\newcommand{\kB}{k_B}
+
+\title{Tracking Error Variance --- Observer}
+\author{}\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2em}
+
+% =====================================================================
+\section{4-State}
+% =====================================================================
+
+
+\medskip
+\textbf{Tracking error} ($\dz\equiv\dz_3$):
+\begin{equation}
+  \dz[k\!+\!1]
+  = \lc\,\dz[k]
+    + (1\!-\!\lc)\,\edz[k]
+    - \az\,\fTz[k],
+  \qquad
+  \edz[k] \triangleq \dz[k] - \dzhat{3}[k].
+  \label{eq:dz}
+\end{equation}
+
+\textbf{Estimation error}
+($e_{\dz i}[k]\triangleq\dz_i[k]-\dzhat{i}[k]$,\; $e_{\dz 3}=\edz$):
+\begin{equation}
+  \begin{bmatrix}e_{\dz 1}\\e_{\dz 2}\\e_{\dz 3}\end{bmatrix}[k\!+\!1]
+  = \underbrace{(F_e - \bm{L}\,H)}_{\displaystyle F}
+  \begin{bmatrix}e_{\dz 1}\\e_{\dz 2}\\e_{\dz 3}\end{bmatrix}[k]
+  + \begin{bmatrix}0\\0\\-\az\end{bmatrix}\fTz[k],
+  \qquad
+  F = \begin{bmatrix}-L_1&1&0\\-L_2&0&1\\-L_3&0&1\end{bmatrix}.
+  \label{eq:edz}
+\end{equation}
+
+Stacking $\bm{s}=[\dz,\;e_{\dz 1},\;e_{\dz 2},\;e_{\dz 3}]^\top$:
+\begin{equation}
+  \boxed{\;
+  \bm{s}[k\!+\!1]
+  = \underbrace{
+  \begin{bmatrix}
+    \lc & 0 & 0 & 1\!-\!\lc \\[2pt]
+    0 & -L_1 & 1 & 0 \\
+    0 & -L_2 & 0 & 1 \\
+    0 & -L_3 & 0 & 1
+  \end{bmatrix}}_{A_4}
+  \bm{s}[k]
+  \;+\;
+  \underbrace{
+  \begin{bmatrix}-\az\\0\\0\\-\az\end{bmatrix}}_{B_4}
+  \fTz[k]
+  \;}
+  \label{eq:aug}
+\end{equation}
+
+% =====================================================================
+\section{Transfer Function}
+% =====================================================================
+
+$H(z) = C_{\mathrm{out}}(zI-A_4)^{-1}B_4$,\;
+$C_{\mathrm{out}}=[1,0,0,0]$:
+\begin{equation}
+  H(z^{-1})
+  = -\az\;\frac{z^{-1}+(L_1\!-\!\lc)\,z^{-2}
+    +(\lc L_1\!-\!L_2)\,z^{-3}
+    +(\lc L_2\!-\!L_3)\,z^{-4}}
+  {(1-\lc\,z^{-1})(1-\le\,z^{-1})^{3}}
+  \label{eq:Hzinv}
+\end{equation}
+
+\begin{equation}
+  H(z)
+  = -\az\;\frac{z^{3}+(L_1\!-\!\lc)\,z^{2}
+    +(\lc L_1\!-\!L_2)\,z
+    +(\lc L_2\!-\!L_3)}
+  {(z-\lc)(z-\le)^{3}}
+  \label{eq:Hz}
+\end{equation}
+
+% =====================================================================
+\section{Variance via Parseval}
+% =====================================================================
+
+$N(z)\triangleq z^{3}+(L_1\!-\!\lc)\,z^{2}+(\lc L_1\!-\!L_2)\,z+(\lc L_2\!-\!L_3)$:
+\begin{equation}
+  C_{\mathrm{obs}}
+  = \frac{1}{\pi}\int_{0}^{\pi}
+    \frac{|N(e^{j\theta})|^{2}}
+         {|e^{j\theta}\!-\!\lc|^{2}\;|e^{j\theta}\!-\!\le|^{6}}
+    \,d\theta
+  \label{eq:parseval}
+\end{equation}
+
+% =====================================================================
+\section{Closed Form: Deadbeat ($\le=0$)}
+% =====================================================================
+
+$\le=0$:\; $L_1=1$, $L_2=1$, $L_3=1$.
+
+\begin{equation}
+  C_{\mathrm{obs}}(\lc,0)
+  = \frac{4-3\lc^2}{1-\lc^2}
+  = 3 + \frac{1}{1-\lc^2}
+  \label{eq:Cpp-db}
+\end{equation}
+
+\begin{equation}
+  \boxed{\;
+  \Delta C
+  \triangleq C_{\mathrm{obs}}(\lc,0) - C_{\mathrm{eq17}}(\lc)
+  = \frac{4-3\lc^2}{1-\lc^2} - \frac{3-2\lc^2}{1-\lc^2}
+  = \frac{1-\lc^2}{1-\lc^2}
+  = 1
+  \;}
+  \label{eq:deltaC}
+\end{equation}
+
+\end{document}
