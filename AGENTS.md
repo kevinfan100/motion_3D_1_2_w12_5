@@ -2,7 +2,7 @@ Use MATLAB MCP as the default tool for this workspace when the task involves MAT
 
 For this repository:
 - Prefer MATLAB MCP for `.m` files, `.slx` models, verification scripts, figure generation, and toolbox inspection.
-- When invoking MATLAB tools for repository work, use `C:\Users\PME406_01\Downloads\motion_3D_1_2_w12_5` as the project path / working folder.
+- When invoking MATLAB tools for repository work, use `C:\Users\PME406_01\Desktop\code\motion_3D_1_2_w12_5` as the project path / working folder.
 - Fall back to shell or Python only for file management, Git operations, text editing, or when MATLAB MCP cannot perform the task.
 - Do not ask the user to explicitly remind you to use MATLAB MCP for normal local MATLAB work in this repository.
 - Respect Codex and Windows security boundaries; if a task cannot run under the current permissions, report that clearly instead of trying to bypass it.
