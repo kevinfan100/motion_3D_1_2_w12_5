@@ -175,63 +175,31 @@ for idx = 1:n_lc
         abs(axm_iir(idx)-a_x_true)/a_x_true*100);
 end
 
-%% ===== Figure 1: sigma^2_dxr vs lambda_c (Verify Eq. 12) =====
-t_vec = (0:N_steps-1)' * Ts;
+%% ===== Compute dense theory curve =====
+lc_dense = 0.1:0.005:0.95;
+C_dense  = 2 + 1./(1 - lc_dense.^2);
+sigma2_theory_dense = C_dense * 4 * kb * T_temp * a_x_true * 1e18;  % [um^2]
 
-figure('Name', 'Eq.12 Verification: sigma^2_dxr vs lambda_c');
-bar_data = [sigma2_theory; sigma2_direct]';
-b = bar(1:n_lc, bar_data);
-b(1).FaceColor = [0.2 0.4 0.8];
-b(2).FaceColor = [0.9 0.3 0.2];
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%.1f', x), lambda_c_list, 'UniformOutput', false));
-xlabel('\lambda_c');
-ylabel('\sigma^2_{dxr} (\mum^2)');
-title('Eq. 12 Verification: \sigma^2_{dxr} vs \lambda_c');
-legend('Theory (Eq. 12)', 'Measured Var(dzm)', 'Location', 'northwest');
-grid on;
-
-%% ===== Figure 2: a_xm time series (Verify Eq. 13 convergence) =====
-figure('Name', 'Eq.13 Verification: a_xm convergence');
-colors = {'b', 'r', [0 0.6 0], [0.8 0.4 0]};
-hold on;
-for idx = 1:n_lc
-    plot(t_vec, axm_ts_direct{idx}, 'Color', colors{idx}, ...
-        'DisplayName', sprintf('\\lambda_c=%.1f', lambda_c_list(idx)));
-end
-yline(a_x_true, 'k--', 'LineWidth', 1.5, 'DisplayName', ...
-    sprintf('a_x true = %.5f', a_x_true));
-hold off;
-xlabel('Time (s)');
-ylabel('a_{xm} (\mum/pN)');
-title('Eq. 13 Verification: a_{xm} convergence (direct variance method)');
-legend('Location', 'best');
-grid on;
-ylim([0, a_x_true * 3]);
-
-%% ===== Figure 3: Steady-state a_xm bar chart + error =====
-figure('Name', 'Eq.13 Summary: steady-state a_xm');
-
-subplot(2,1,1);
-bar_axm = [repmat(a_x_true, 1, n_lc); axm_direct]';
-b2 = bar(1:n_lc, bar_axm);
-b2(1).FaceColor = [0.2 0.4 0.8];
-b2(2).FaceColor = [0.9 0.3 0.2];
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%.1f', x), lambda_c_list, 'UniformOutput', false));
-xlabel('\lambda_c');
-ylabel('a_{xm} (\mum/pN)');
-title('Steady-state a_{xm} vs theory (direct variance)');
-legend('a_x true', 'a_{xm} measured', 'Location', 'best');
-grid on;
-
-subplot(2,1,2);
 rel_err = abs(axm_direct - a_x_true) / a_x_true * 100;
-bar(1:n_lc, rel_err, 'FaceColor', [0.9 0.6 0.1]);
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%.1f', x), lambda_c_list, 'UniformOutput', false));
-xlabel('\lambda_c');
-ylabel('Relative Error (%)');
-title('Relative error of a_{xm}');
-yline(5, 'r--', 'LineWidth', 1.5);
+
+%% ===== Figure: variance vs lc =====
+fig_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'figures');
+fig1 = figure('Position', [50 50 800 500], 'Color', 'w');
+plot(lc_dense, sigma2_theory_dense, 'b-', 'LineWidth', 2.5, ...
+    'DisplayName', 'Theory'); hold on;
+plot(lambda_c_list, sigma2_direct, 'ro', 'MarkerSize', 10, ...
+    'MarkerFaceColor', 'r', 'LineWidth', 1.5, 'DisplayName', 'Direct Var');
+plot(lambda_c_list, sigma2_iir, 'gs', 'MarkerSize', 10, ...
+    'MarkerFaceColor', 'g', 'LineWidth', 1.5, 'DisplayName', 'IIR filter');
+hold off;
+xlabel('\lambda_c', 'FontSize', 14, 'FontWeight', 'bold');
+ylabel('\sigma^2_{dxr}  (\mum^2)', 'FontSize', 14, 'FontWeight', 'bold');
+title('Eq. 12 Verification: \sigma^2_{dxr} vs \lambda_c', ...
+    'FontSize', 16, 'FontWeight', 'bold');
+legend('Location', 'northwest', 'FontSize', 11);
+set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
 grid on;
+saveas(fig1, fullfile(fig_dir, 'fig_eq13_variance.png'));
 
 %% ===== Summary Table =====
 fprintf('\n========== VERIFICATION SUMMARY ==========\n');

@@ -393,67 +393,24 @@ fprintf('  -> EKF observer adds %.0f%%--%.0f%% extra variance\n', ...
 fprintf('\nConclusion: Eq. 13 with C(lc)=2+1/(1-lc^2) is exact for Eq.17.\n');
 fprintf('Estimator-based methods add observer noise; different C factor needed.\n');
 
-%% ===== Figure 1: sig2 + axm vs lc (2x1) =====
-fig1 = figure('Position', [50 50 800 750], 'Color', 'w');
-
-ax1 = subplot(2,1,1);
-plot(lc_dense, sig2_theory_dense*1e4, 'b-', 'LineWidth', 2.5); hold on;
-plot(lc_sim, sig2_eq17*1e4, 'rs', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'LineWidth', 1.5);
-plot(lc_sim, sig2_pp*1e4, 'g^', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'LineWidth', 1.5);
-plot(lc_sim, sig2_ekf*1e4, 'md', 'MarkerSize', 10, 'MarkerFaceColor', 'm', 'LineWidth', 1.5);
-hold off;
-ylabel('\sigma^2_{\deltaxr}  (10^{-4} \mum^2)', 'FontSize', 14, 'FontWeight', 'bold');
-set(ax1, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
-xlim([0.3 1.0]);
-legend('Theory', 'Eq.17', '3-state PP', '7-state EKF', ...
-    'Orientation', 'horizontal', 'FontSize', 11, 'Location', 'northwest');
-
-ax2 = subplot(2,1,2);
-plot(lc_dense, ones(size(lc_dense))*a_x, 'b-', 'LineWidth', 2.5); hold on;
-plot(lc_sim, axm_eq17, 'rs', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'LineWidth', 1.5);
-plot(lc_sim, axm_pp, 'g^', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'LineWidth', 1.5);
-plot(lc_sim, axm_ekf, 'md', 'MarkerSize', 10, 'MarkerFaceColor', 'm', 'LineWidth', 1.5);
-hold off;
-xlabel('\lambda_c', 'FontSize', 16, 'FontWeight', 'bold');
-ylabel('a_{xm}  (\mum/pN)', 'FontSize', 14, 'FontWeight', 'bold');
-set(ax2, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
-xlim([0.3 1.0]);
-yl_lo = min([a_x, min(axm_eq17), min(axm_pp), min(axm_ekf)]) * 0.9;
-yl_hi = max([a_x, max(axm_eq17), max(axm_pp), max(axm_ekf)]) * 1.1;
-ylim([yl_lo yl_hi]);
-
+%% ===== Figure: variance vs lc =====
 fig_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'figures');
-saveas(fig1, fullfile(fig_dir, 'fig_unified_main.png'));
-
-%% ===== Figure 2: Error grouped bar =====
-fig2 = figure('Position', [50 50 700 400], 'Color', 'w');
-bar_data = [err_eq17; err_pp; err_ekf]';
-b = bar(1:n_lc, bar_data, 'grouped');
-b(1).FaceColor = [0.9 0.3 0.2];   % Eq.17
-b(2).FaceColor = [0.2 0.7 0.3];   % 3-state PP
-b(3).FaceColor = [0.6 0.2 0.8];   % 7-state EKF
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%.1f', x), lc_sim, 'UniformOutput', false));
-xlabel('\lambda_c', 'FontSize', 16, 'FontWeight', 'bold');
-ylabel('Relative Error (%)', 'FontSize', 14, 'FontWeight', 'bold');
-legend('Eq.17', '3-state PP', '7-state EKF', 'Location', 'northwest', 'FontSize', 12);
-hold on; yline(2, 'r--', 'LineWidth', 1.5); hold off;
+fig1 = figure('Position', [50 50 800 500], 'Color', 'w');
+plot(lc_dense, sig2_theory_dense, 'b-', 'LineWidth', 2.5, ...
+    'DisplayName', 'Theory'); hold on;
+plot(lc_sim, sig2_eq17, 'rs', 'MarkerSize', 10, ...
+    'MarkerFaceColor', 'r', 'LineWidth', 1.5, 'DisplayName', 'Eq.17');
+plot(lc_sim, sig2_pp, 'g^', 'MarkerSize', 10, ...
+    'MarkerFaceColor', 'g', 'LineWidth', 1.5, 'DisplayName', '3-state PP');
+plot(lc_sim, sig2_ekf, 'md', 'MarkerSize', 10, ...
+    'MarkerFaceColor', 'm', 'LineWidth', 1.5, 'DisplayName', '7-state EKF');
+hold off;
+xlabel('\lambda_c', 'FontSize', 14, 'FontWeight', 'bold');
+ylabel('\sigma^2_{dxr}  (\mum^2)', 'FontSize', 14, 'FontWeight', 'bold');
+title('Unified Verification: \sigma^2_{dxr} vs \lambda_c', ...
+    'FontSize', 16, 'FontWeight', 'bold');
+legend('Location', 'northwest', 'FontSize', 11);
 set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
 grid on;
-saveas(fig2, fullfile(fig_dir, 'fig_unified_error.png'));
-
-%% ===== Figure 3: Mean(dzm) bar =====
-fig3 = figure('Position', [50 50 700 400], 'Color', 'w');
-mean_data = [mean_eq17; mean_pp; mean_ekf]';
-b3 = bar(1:n_lc, mean_data, 'grouped');
-b3(1).FaceColor = [0.9 0.3 0.2];
-b3(2).FaceColor = [0.2 0.7 0.3];
-b3(3).FaceColor = [0.6 0.2 0.8];
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%.1f', x), lc_sim, 'UniformOutput', false));
-xlabel('\lambda_c', 'FontSize', 16, 'FontWeight', 'bold');
-ylabel('Mean(\deltaz_m) (\mum)', 'FontSize', 14, 'FontWeight', 'bold');
-legend('Eq.17', '3-state PP', '7-state EKF', 'Location', 'best', 'FontSize', 12);
-set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
-grid on;
-saveas(fig3, fullfile(fig_dir, 'fig_unified_mean.png'));
-
-fprintf('\n3 figures saved: fig_unified_main.png, fig_unified_error.png, fig_unified_mean.png\n');
+saveas(fig1, fullfile(fig_dir, 'fig_unified_variance.png'));
+fprintf('\nFigure saved: fig_unified_variance.png\n');

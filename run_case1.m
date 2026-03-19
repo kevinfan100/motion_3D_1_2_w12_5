@@ -156,67 +156,36 @@ fprintf('\n--- Stability ---\n');
 fprintf('  Simulation stable: %s\n', string(~any(isnan(dz_k2) | isinf(dz_k2))));
 fprintf('  std(dz_k2) steady-state: %.4e um\n', std(dz_k2(ss)));
 
-%% ===== Figure 1: Three methods comparison (time series) =====
-% Compute running Eq.13 from direct variance (Method A time series)
-axm_running = zeros(N, 1);
+%% ===== Figure: Running variance vs time =====
+% Compute running Var(dz_k2) [um^2]
+run_var_ts = zeros(N, 1);
 dz_sum = 0; dz2_sum = 0;
 for k = 1:N
     if k > round(N/4)   % skip initial transient
         n_so_far = k - round(N/4);
         dz_sum  = dz_sum + dz_k2(k);
         dz2_sum = dz2_sum + dz_k2(k)^2;
-        run_var = dz2_sum/n_so_far - (dz_sum/n_so_far)^2;
-        run_var_corr = run_var - (2/(1 + lamdaC)) * sigma2_nz;
-        if run_var_corr < 0, run_var_corr = run_var; end
-        axm_running(k) = (run_var_corr * 1e-12) / den_eq13 * 1e-6;
+        run_var_ts(k) = dz2_sum/n_so_far - (dz_sum/n_so_far)^2;
     end
 end
 
 fig1 = figure('Position', [50 50 1000 550], 'Color', 'w');
-plot(t, axm_running, 'b', 'LineWidth', 1.5, ...
-    'DisplayName', 'Method A: Var(dz\_k2) -> Eq.13');
+plot(t, run_var_ts, 'b', 'LineWidth', 1.5, ...
+    'DisplayName', 'Running Var(dz_{k2})');
 hold on;
-plot(t, azm_k / Am_scaling, 'Color', [0 0.6 0], 'LineWidth', 0.8, ...
-    'DisplayName', 'Method B: IIR azm\_k / Am\_scaling');
-yline(axm_plant, 'r--', 'LineWidth', 2, ...
-    'DisplayName', sprintf('Plant a_z = %.5f (Ts/gamma_z)', axm_plant));
-yline(axm_theory, 'k--', 'LineWidth', 1.5, ...
-    'DisplayName', sprintf('Nominal a_z = %.5f (Ts/gammaN)', axm_theory));
+yline(sigma2_theory, 'r--', 'LineWidth', 2, ...
+    'DisplayName', sprintf('Theory \\sigma^2 = %.4e', sigma2_theory));
 hold off;
 
 xlabel('Time (s)', 'FontSize', 14, 'FontWeight', 'bold');
-ylabel('a_{zm} (um/pN)', 'FontSize', 14, 'FontWeight', 'bold');
-title(sprintf('Case 1: Eq.13 Verification (lamdaC = %.1f)', lamdaC), ...
+ylabel('\sigma^2_{dxr}  (\mum^2)', 'FontSize', 14, 'FontWeight', 'bold');
+title(sprintf('Case 1: Running Variance (\\lambda_c = %.1f)', lamdaC), ...
     'FontSize', 16, 'FontWeight', 'bold');
 legend('Location', 'best', 'FontSize', 11);
 set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
 grid on;
-ylim([0, max(axm_theory, axm_plant) * 3]);
 
 lc_str = strrep(sprintf('%.1f', lamdaC), '.', '');
-fname1 = sprintf('fig_case1_lc%s.png', lc_str);
+fname1 = sprintf('fig_case1_variance_lc%s.png', lc_str);
 saveas(fig1, fullfile('figures', fname1));
 fprintf('\nFigure saved: %s\n', fname1);
-
-%% ===== Figure 2: Simulink raw signals (azm_k, az_hat_k, mgain_z) =====
-fig2 = figure('Position', [50 600 1000 550], 'Color', 'w');
-stairs(t, azm_k, 'b', 'LineWidth', 0.8, ...
-    'DisplayName', 'azm\_k (IIR x Am\_scaling)');
-hold on;
-plot(t, az_hat_k, 'Color', [0 0.6 0], 'LineWidth', 1.0, ...
-    'DisplayName', 'az\_hat\_k (EKF)');
-plot(t, mgain_z, 'r', 'LineWidth', 1.5, ...
-    'DisplayName', 'mgain\_z (Ts/gammaN)');
-hold off;
-
-xlabel('Time (s)', 'FontSize', 14, 'FontWeight', 'bold');
-ylabel('az (um/(pN s))', 'FontSize', 14, 'FontWeight', 'bold');
-title(sprintf('Case 1: Raw Simulink Signals (lamdaC = %.1f)', lamdaC), ...
-    'FontSize', 16, 'FontWeight', 'bold');
-legend('Location', 'best', 'FontSize', 11);
-set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
-grid on;
-
-fname2 = sprintf('fig_case1_raw_lc%s.png', lc_str);
-saveas(fig2, fullfile('figures', fname2));
-fprintf('Figure saved: %s\n', fname2);

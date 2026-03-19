@@ -186,72 +186,22 @@ for j = 1:length(le_list)
         abs(axm_le(j)-a_x)/a_x*100);
 end
 
-%% ===== Figure 1: Main result =====
-fig1 = figure('Position', [50 50 700 750], 'Color', 'w');
-
-ax1 = subplot(2,1,1);
-h1a = plot(lc_dense, sig2_theory_dense*1e4, 'b-', 'LineWidth', 2.5);
-hold on;
-h1b = plot(lc_sim, sig2_est*1e4, 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'LineWidth', 1.5);
-hold off;
-xlabel('\lambda_c', 'FontSize', 18, 'FontWeight', 'bold');
-ylabel('\sigma^2_{\deltaxr}  (10^{-4} \mum^2)', 'FontSize', 16, 'FontWeight', 'bold');
-set(ax1, 'FontSize', 15, 'FontWeight', 'bold', 'LineWidth', 2, ...
-    'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
-xlim([0.1 1.0]);
-set(ax1, 'Position', [0.13 0.53 0.82 0.38]);
-
-ax2 = subplot(2,1,2);
-plot(lc_dense, ones(size(lc_dense))*a_x, 'b-', 'LineWidth', 2.5);
-hold on;
-plot(lc_sim, axm_est, 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'LineWidth', 1.5);
-hold off;
-xlabel('\lambda_c', 'FontSize', 18, 'FontWeight', 'bold');
-ylabel('a_{xm}  (\mum/pN)', 'FontSize', 16, 'FontWeight', 'bold');
-set(ax2, 'FontSize', 15, 'FontWeight', 'bold', 'LineWidth', 2, ...
-    'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
-xlim([0.1 1.0]);
-% Auto ylim to include both theory line and simulation data
-yl_lo = min([a_x, min(axm_est)]) * 0.9;
-yl_hi = max([a_x, max(axm_est)]) * 1.1;
-ylim([yl_lo yl_hi]);
-set(ax2, 'Position', [0.13 0.08 0.82 0.38]);
-
-lg = legend(ax1, [h1a, h1b], {'Theory', 'Simulation'}, ...
-    'Orientation', 'horizontal', 'FontSize', 15, 'FontWeight', 'bold', ...
-    'Box', 'on', 'LineWidth', 1.5);
-set(lg, 'Position', [0.32 0.93 0.36 0.04]);
-
+%% ===== Figure: variance vs lc =====
 fig_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'figures');
-saveas(fig1, fullfile(fig_dir, 'fig_estimator_main.png'));
-
-%% ===== Figure 2: Error bar chart =====
-fig2 = figure('Position', [50 50 600 350], 'Color', 'w');
-bar(lc_sim, rel_err_est, 0.6, 'FaceColor', [0.2 0.5 0.8]);
-hold on; yline(2, 'r--', 'LineWidth', 1.5);
-text(0.85, 2.3, '2%', 'Color', 'r', 'FontSize', 12, 'FontWeight', 'bold');
+fig1 = figure('Position', [50 50 800 500], 'Color', 'w');
+plot(lc_dense, sig2_theory_dense, 'b-', 'LineWidth', 2.5, ...
+    'DisplayName', 'Theory'); hold on;
+plot(lc_sim, sig2_est, 'ro', 'MarkerSize', 10, ...
+    'MarkerFaceColor', 'r', 'LineWidth', 1.5, 'DisplayName', 'Estimator');
+plot(lc_sim, sig2_eq17, 'gs', 'MarkerSize', 10, ...
+    'MarkerFaceColor', 'g', 'LineWidth', 1.5, 'DisplayName', 'Eq.17');
 hold off;
-xlabel('\lambda_c', 'FontSize', 16, 'FontWeight', 'bold');
-ylabel('Relative Error (%)', 'FontSize', 14, 'FontWeight', 'bold');
-set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, ...
-    'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
-ylim([0 max(rel_err_est)*1.2]);
-saveas(fig2, fullfile(fig_dir, 'fig_estimator_error.png'));
-
-%% ===== Figure 3: Lambda_e sensitivity =====
-fig3 = figure('Position', [50 50 600 350], 'Color', 'w');
-plot(le_list, axm_le, 'ro-', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'LineWidth', 2);
-hold on;
-yline(a_x, 'b-', 'LineWidth', 2.5);
-hold off;
-xlabel('\lambda_e', 'FontSize', 16, 'FontWeight', 'bold');
-ylabel('a_{xm}  (\mum/pN)', 'FontSize', 14, 'FontWeight', 'bold');
-set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, ...
-    'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
-ylim([0.012 max(axm_le)*1.1]);
-lg3 = legend('Simulation', 'a_x true', 'Location', 'north', ...
-    'Orientation', 'horizontal', 'FontSize', 13, 'FontWeight', 'bold', ...
-    'Box', 'on', 'LineWidth', 1.5);
-saveas(fig3, fullfile(fig_dir, 'fig_estimator_lambda_e.png'));
-
-fprintf('\n3 figures saved.\n');
+xlabel('\lambda_c', 'FontSize', 14, 'FontWeight', 'bold');
+ylabel('\sigma^2_{dxr}  (\mum^2)', 'FontSize', 14, 'FontWeight', 'bold');
+title('Eq. 13 Verification: Estimator vs Eq.17', ...
+    'FontSize', 16, 'FontWeight', 'bold');
+legend('Location', 'northwest', 'FontSize', 11);
+set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
+grid on;
+saveas(fig1, fullfile(fig_dir, 'fig_estimator_variance.png'));
+fprintf('\nFigure saved: fig_estimator_variance.png\n');
