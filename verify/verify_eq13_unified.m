@@ -422,7 +422,8 @@ yl_lo = min([a_x, min(axm_eq17), min(axm_pp), min(axm_ekf)]) * 0.9;
 yl_hi = max([a_x, max(axm_eq17), max(axm_pp), max(axm_ekf)]) * 1.1;
 ylim([yl_lo yl_hi]);
 
-saveas(fig1, 'fig_unified_main.png');
+fig_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'figures');
+saveas(fig1, fullfile(fig_dir, 'fig_unified_main.png'));
 
 %% ===== Figure 2: Error grouped bar =====
 fig2 = figure('Position', [50 50 700 400], 'Color', 'w');
@@ -438,7 +439,7 @@ legend('Eq.17', '3-state PP', '7-state EKF', 'Location', 'northwest', 'FontSize'
 hold on; yline(2, 'r--', 'LineWidth', 1.5); hold off;
 set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
 grid on;
-saveas(fig2, 'fig_unified_error.png');
+saveas(fig2, fullfile(fig_dir, 'fig_unified_error.png'));
 
 %% ===== Figure 3: Mean(dzm) bar =====
 fig3 = figure('Position', [50 50 700 400], 'Color', 'w');
@@ -453,6 +454,6 @@ ylabel('Mean(\deltaz_m) (\mum)', 'FontSize', 14, 'FontWeight', 'bold');
 legend('Eq.17', '3-state PP', '7-state EKF', 'Location', 'best', 'FontSize', 12);
 set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
 grid on;
-saveas(fig3, 'fig_unified_mean.png');
+saveas(fig3, fullfile(fig_dir, 'fig_unified_mean.png'));
 
 fprintf('\n3 figures saved: fig_unified_main.png, fig_unified_error.png, fig_unified_mean.png\n');

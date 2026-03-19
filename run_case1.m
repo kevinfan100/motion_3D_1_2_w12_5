@@ -195,7 +195,7 @@ ylim([0, max(axm_theory, axm_plant) * 3]);
 
 lc_str = strrep(sprintf('%.1f', lamdaC), '.', '');
 fname1 = sprintf('fig_case1_lc%s.png', lc_str);
-saveas(fig1, fname1);
+saveas(fig1, fullfile('figures', fname1));
 fprintf('\nFigure saved: %s\n', fname1);
 
 %% ===== Figure 2: Simulink raw signals (azm_k, az_hat_k, mgain_z) =====
@@ -218,5 +218,5 @@ set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
 grid on;
 
 fname2 = sprintf('fig_case1_raw_lc%s.png', lc_str);
-saveas(fig2, fname2);
+saveas(fig2, fullfile('figures', fname2));
 fprintf('Figure saved: %s\n', fname2);

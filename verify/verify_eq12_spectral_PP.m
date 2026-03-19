@@ -492,7 +492,8 @@ title(sprintf('Tracking Error Variance (\\lambda_e=%.1f, \\gamma=%.4f pN{\\cdot}
     le_fixed, gammaN), 'FontSize', 13);
 legend('Location', 'northwest', 'FontSize', 11); grid on;
 set(gca, 'FontSize', 12);
-print(gcf, fullfile(pwd, 'fig_variance_comparison.png'), '-dpng', '-r150');
+fig_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'figures');
+print(gcf, fullfile(fig_dir, 'fig_variance_comparison.png'), '-dpng', '-r150');
 
 %% ===== Figure 2: Deadbeat (le=0) variance =====
 C_db_filt_dense = zeros(1, n_dense);
@@ -517,7 +518,7 @@ title(sprintf('Deadbeat Observer (\\lambda_e=0): \\gamma=%.4f pN{\\cdot}s/\\mum'
     'FontSize', 13);
 legend('Location', 'northwest', 'FontSize', 11); grid on;
 set(gca, 'FontSize', 12);
-print(gcf, fullfile(pwd, 'fig_variance_le0.png'), '-dpng', '-r150');
+print(gcf, fullfile(fig_dir, 'fig_variance_le0.png'), '-dpng', '-r150');
 
 fprintf('\nFigures saved:\n');
 fprintf('  fig_variance_comparison.png\n');

@@ -222,7 +222,8 @@ lg = legend(ax1, [h1a, h1b], {'Theory', 'Simulation'}, ...
     'Box', 'on', 'LineWidth', 1.5);
 set(lg, 'Position', [0.32 0.93 0.36 0.04]);
 
-saveas(fig1, 'fig_estimator_main.png');
+fig_dir = fullfile(fileparts(mfilename('fullpath')), '..', 'figures');
+saveas(fig1, fullfile(fig_dir, 'fig_estimator_main.png'));
 
 %% ===== Figure 2: Error bar chart =====
 fig2 = figure('Position', [50 50 600 350], 'Color', 'w');
@@ -235,7 +236,7 @@ ylabel('Relative Error (%)', 'FontSize', 14, 'FontWeight', 'bold');
 set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, ...
     'Box', 'on', 'XGrid', 'off', 'YGrid', 'off');
 ylim([0 max(rel_err_est)*1.2]);
-saveas(fig2, 'fig_estimator_error.png');
+saveas(fig2, fullfile(fig_dir, 'fig_estimator_error.png'));
 
 %% ===== Figure 3: Lambda_e sensitivity =====
 fig3 = figure('Position', [50 50 600 350], 'Color', 'w');
@@ -251,6 +252,6 @@ ylim([0.012 max(axm_le)*1.1]);
 lg3 = legend('Simulation', 'a_x true', 'Location', 'north', ...
     'Orientation', 'horizontal', 'FontSize', 13, 'FontWeight', 'bold', ...
     'Box', 'on', 'LineWidth', 1.5);
-saveas(fig3, 'fig_estimator_lambda_e.png');
+saveas(fig3, fullfile(fig_dir, 'fig_estimator_lambda_e.png'));
 
 fprintf('\n3 figures saved.\n');

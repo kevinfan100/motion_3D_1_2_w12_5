@@ -1,5 +1,14 @@
+# Simulink build artifacts
 slprj/
 *.slxc
-*.pdf
-*.pptx
-.claude/
+
+# MATLAB temp files
+*.asv
+*.autosave
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Claude Code local config (rules + commands tracked in git)
+.claude/settings.local.json
