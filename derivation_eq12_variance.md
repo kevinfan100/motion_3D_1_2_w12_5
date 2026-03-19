@@ -1,707 +1,569 @@
-# Eq.12 Complete Derivation: From Closed-Loop Transfer Function to Tracking Error Variance
+# 追蹤誤差變異數的完整推導 (Paper 1 Eq.22 / Paper 2 Eq.12)
 
-From the control law (Eq.17) through the closed-loop transfer function H(z),
-to the variance formula via Parseval's theorem.
+From the d-step delay compensation control law (Paper 1, Eq.17) through the
+closed-loop transfer functions H_T(z⁻¹) and H_n(z⁻¹), to the variance formula
+via Parseval's theorem.
 
----
-
-## Part 1: Plant and Control Law Review
-
-### 1.1 Plant dynamics
-
-Discrete-time probe dynamics (single axis):
-
-    z[k+1] = z[k] + a_x * (fd[k] + fT[k])
-
-- z[k]: probe position [um]
-- a_x = Ts / gamma: motion gain [um/pN]
-- fd[k]: control force [pN]
-- fT[k]: thermal noise force [pN], i.i.d. N(0, sigma_fT^2)
-  - sigma_fT^2 = 4 * kB * T * gamma_SI / Ts
-
-### 1.2 Tracking error
-
-    e[k] = z_d - z[k]
-
-Substituting the plant equation:
-
-    e[k+1] = z_d - z[k+1]
-           = z_d - z[k] - a_x*(fd[k] + fT[k])
-           = e[k] - a_x*fd[k] - a_x*fT[k]
-
-### 1.3 Measurement delay (d = 2)
-
-The optical sensor has a 2-step processing delay:
-
-    dzm[k] = z_d - z[k-2] = e[k-2]
-
-We observe the error from 2 steps ago, not the current error.
-
-### 1.4 Eq.17: d-step delay compensation control law
-
-The controller must compensate the 2-step delay. The key idea: use known
-control history to "predict" the current error from the delayed measurement.
-
-**Step A — Two-step plant expansion:**
-
-    z[k] = z[k-2] + a_x*(fd[k-2] + fd[k-1]) + a_x*(fT[k-2] + fT[k-1])
-             known: measurement              unknown: thermal noise
-
-**Step B — Predicted current error:**
-
-    e_hat[k] = dzm[k] - a_x*(fd[k-2] + fd[k-1])
-             = e[k] + a_x*(fT[k-2] + fT[k-1])
-
-The prediction is unbiased but contaminated by 2 steps of unobservable noise.
-
-**Step C — Control law (Eq.17, d=2, stationary target):**
-
-    fd[k] = (1/a_x) * (1 - lc) * e_hat[k]
-           = (1/a_x) * (1-lc) * dzm[k] - (1-lc) * (fd[k-1] + fd[k-2])
-
-### 1.5 Closed-loop error dynamics
-
-Substitute fd[k] into the error equation e[k+1] = e[k] - a_x*fd[k] - a_x*fT[k]:
-
-    e[k+1] = e[k] - (1-lc)*e_hat[k] - a_x*fT[k]
-           = e[k] - (1-lc)*{e[k] + a_x*(fT[k-2] + fT[k-1])} - a_x*fT[k]
-           = lc*e[k] - (1-lc)*a_x*fT[k-2] - (1-lc)*a_x*fT[k-1] - a_x*fT[k]
-
-Final form:
-
-    e[k+1] = lc * e[k] + w[k]
-
-where:
-
-    w[k] = -a_x * { fT[k] + (1-lc)*fT[k-1] + (1-lc)*fT[k-2] }
-
-Key properties:
-- The closed-loop pole is exactly lc (satisfies Eq.7 control objective)
-- The driving noise w[k] is **colored** (depends on fT at 3 time steps)
-- The coloring comes from the 2-step delay: fT[k-1] and fT[k-2] could not
-  be observed or compensated during the delay period
+**Notation follows:**
+- Paper 1: Meng & Menq, TMECH 2023, Eq.12–24
+- Paper 2: Meng, Long & Menq, TIE 2025, Eq.1–13
 
 ---
 
-## Part 2: Transfer Function H(z) from fT to dzm
+## Part 1: 受控體動態與延遲補償控制律
 
-### 2.1 Z-transform of the error dynamics
+### 1.1 連續動態方程 (Paper 1, Eq.13 / Paper 2, Eq.1)
 
-Starting from e[k+1] = lc*e[k] + w[k], take the Z-transform:
+單軸受控體運動方程（過阻尼 Langevin 動態）：
 
-    z*E(z) = lc*E(z) + W(z)
+    γ · dx/dt = f_d(t) + f_T(t)
 
-Expand w[k] = -a_x*{fT[k] + (1-lc)*fT[k-1] + (1-lc)*fT[k-2]}:
+- γ: 阻力係數 [N·s/m]
+- f_d(t): 控制力 [N]
+- f_T(t): 熱力噪聲力 [N]
 
-    W(z) = -a_x * {1 + (1-lc)*z^(-1) + (1-lc)*z^(-2)} * FT(z)
-         = -a_x * {z^2 + (1-lc)*z + (1-lc)} / z^2 * FT(z)
+### 1.2 離散運動方程 (Paper 1, Eq.14 / Paper 2, Eq.5)
 
-Solve for E(z):
+以取樣週期 Δt 離散化：
 
-    E(z) = W(z) / (z - lc)
-         = -a_x * {z^2 + (1-lc)*z + (1-lc)} / {z^2 * (z - lc)} * FT(z)
+    x[k+1] = x[k] + a_x · (f_d[k] + f_T[k])        ... (Paper 1, Eq.14)
 
-### 2.2 Transfer function from fT to e[k]
+- x[k]: 位置 [μm]
+- a_x = Δt/γ: 運動增益 [μm/pN]  (Paper 2 notation)
+- f_d[k]: 控制力 [pN]
+- f_T[k]: 熱力噪聲力 [pN], i.i.d. N(0, σ²_fT)
+  - σ²_fT = 4·k_B·T·γ_SI / Δt   [N²]
 
-    H_e(z) = E(z) / FT(z) = -a_x * [z^2 + (1-lc)*z + (1-lc)] / [z^2 * (z - lc)]
+### 1.3 追蹤誤差定義
 
-### 2.3 From e[k] to dzm[k]
+    δx[k] = x_d[k] - x[k]
 
-The measured error is the 2-step delayed version of e[k]:
+代入離散運動方程：
 
-    dzm[k] = e[k-2]
-    DZM(z) = z^(-2) * E(z)
+    δx[k+1] = x_d - x[k+1]
+             = δx[k] - a_x·f_d[k] - a_x·f_T[k]
 
-Therefore:
+### 1.4 量測延遲 (d = 2)
 
-    H(z) = DZM(z) / FT(z) = z^(-2) * H_e(z)
+光學感測器有 2 步處理延遲：
 
-    H(z) = -a_x * [z^2 + (1-lc)*z + (1-lc)] / [z^4 * (z - lc)]
+    δx_m[k] = x_d - x[k-2] = δx[k-2]
 
-Wait — let me be more careful. The transfer function H_e(z) already has z^2
-in the denominator from the W(z) term. Let me re-derive cleanly.
+控制器觀測到的是 2 步前的追蹤誤差，非當前值。
 
-### 2.4 Clean derivation
+### 1.5 d-step 延遲補償控制律 (Paper 1, Eq.15→16→17)
 
-From the error dynamics in Z-domain:
+**步驟 A — 兩步展開植物方程：**
 
-    (z - lc) * E(z) = -a_x * [1 + (1-lc)*z^(-1) + (1-lc)*z^(-2)] * FT(z)
+    x[k] = x[k-2] + a_x·(f_d[k-2] + f_d[k-1]) + a_x·(f_T[k-2] + f_T[k-1])
+              已知：量測 + 控制歷史                  未知：熱力噪聲
 
-Multiply both sides by z^2:
+**步驟 B — 預測當前誤差：**
 
-    z^2*(z - lc) * E(z) = -a_x * [z^2 + (1-lc)*z + (1-lc)] * FT(z)
+    δx̂[k] = δx_m[k] - a_x·(f_d[k-2] + f_d[k-1])
+            = δx[k] + a_x·(f_T[k-2] + f_T[k-1])
 
-So:
+預測無偏但被 2 步不可觀測噪聲污染。
 
-    H_e(z) = E(z)/FT(z) = -a_x * [z^2 + (1-lc)*z + (1-lc)] / [z^2*(z - lc)]
+**步驟 C — 控制律 (Paper 1, Eq.17, d=2, 靜止目標)：**
 
-Now dzm[k] = e[k-2], so DZM(z) = z^(-2)*E(z):
+    f_d[k] = (1/a_x)·(1 - λ_c)·δx̂[k]                ... (Paper 1, Eq.17)
 
-    H(z) = DZM(z)/FT(z) = z^(-2) * H_e(z)
-         = -a_x * [z^2 + (1-lc)*z + (1-lc)] / [z^4*(z - lc)]
+展開：
 
-**But** for computing |H(e^(j*theta))|^2 on the unit circle, we can use H_e
-directly because |z^(-2)| = 1 on the unit circle. The extra z^(-2) only adds
-phase, not magnitude.
+    f_d[k] = (1/a_x)·(1-λ_c)·δx_m[k] - (1-λ_c)·(f_d[k-1] + f_d[k-2])
 
-So for variance computation:
+### 1.6 閉迴路誤差動態 (Paper 1, Eq.18–19 / Paper 2, Eq.7–8)
 
-    |H(e^(j*theta))|^2 = |H_e(e^(j*theta))|^2
+將 f_d[k] 代入 δx[k+1] = δx[k] - a_x·f_d[k] - a_x·f_T[k]：
 
-And:
+    δx[k+1] = δx[k] - (1-λ_c)·δx̂[k] - a_x·f_T[k]
+             = δx[k] - (1-λ_c)·{δx[k] + a_x·(f_T[k-2] + f_T[k-1])} - a_x·f_T[k]
+             = λ_c·δx[k] - (1-λ_c)·a_x·f_T[k-2] - (1-λ_c)·a_x·f_T[k-1] - a_x·f_T[k]
 
-    H_e(z) = -a_x * [z^2 + (1-lc)*z + (1-lc)] / [z^2*(z - lc)]
+最終形式 (Paper 1, Eq.18)：
 
-Poles of H_e: {0, 0, lc} — three poles, matching Eq.17's structure.
+    δx[k+1] = λ_c · δx[k] - ε[k]                     ... (Paper 1, Eq.18)
 
-### 2.5 Normalized transfer function
+其中殘餘擾動 (Paper 1, Eq.19 / Paper 2, Eq.8)：
 
-Factor out -a_x for convenience. Define:
+    ε[k] = a_x · { f_T[k] + (1-λ_c)·f_T[k-1] + (1-λ_c)·f_T[k-2] }
+                                                        ... (Paper 1, Eq.19)
 
-    H(z) = -a_x * H_norm(z)
-
-    H_norm(z) = [z^2 + (1-lc)*z + (1-lc)] / [z^2*(z - lc)]
-
-The variance will be:
-
-    Var(dzm) = sigma_fT^2 * a_x^2 * C(lc)
-
-where C(lc) = sum of |h_norm[k]|^2 (impulse response energy of H_norm).
+關鍵性質：
+- 閉迴路極點恰好是 λ_c（滿足 Paper 2, Eq.7 的控制目標）
+- 驅動噪聲 ε[k] 是**有色的**（依賴 f_T 的 3 個時步）
+- 有色性來自 2 步延遲：f_T[k-1] 和 f_T[k-2] 在延遲期間無法被觀測或補償
 
 ---
 
-## Part 3: Impulse Response h[k]
+## Part 2: 轉移函數 H_T(z⁻¹) 與 H_n(z⁻¹) (Paper 1, Eq.20–21)
 
-### 3.1 Partial fraction decomposition of H_norm(z)
+### 2.1 Z-transform (Paper 1, Eq.20)
 
-We need to find h_norm[k] = Z^(-1){H_norm(z)}.
+從 δx[k+1] = λ_c·δx[k] - ε[k] 取 Z-transform：
 
-    H_norm(z) = [z^2 + (1-lc)*z + (1-lc)] / [z^2*(z - lc)]
+    z·δX(z) = λ_c·δX(z) - E_ε(z)
 
-Partial fractions for H_norm(z)/z (standard technique):
+展開 ε[k] = a_x·{f_T[k] + (1-λ_c)·f_T[k-1] + (1-λ_c)·f_T[k-2]}：
 
-    H_norm(z)/z = [z^2 + (1-lc)*z + (1-lc)] / [z^3*(z - lc)]
+    E_ε(z) = a_x · {1 + (1-λ_c)·z⁻¹ + (1-λ_c)·z⁻²} · F_T(z)
 
-Decompose:
+解出 δX(z)：
 
-    = A/z + B/z^2 + C/z^3 + D/(z - lc)
+    δX(z) = -a_x · {1 + (1-λ_c)·z⁻¹ + (1-λ_c)·z⁻²} / (z - λ_c) · F_T(z)
 
-Multiply through by z^3*(z-lc):
+### 2.2 從 f_T 到 δx 的轉移函數
 
-    z^2 + (1-lc)*z + (1-lc) = A*z^2*(z-lc) + B*z*(z-lc) + C*(z-lc) + D*z^3
+    H_T,δx(z) = δX(z) / F_T(z)
+               = -a_x · [z² + (1-λ_c)·z + (1-λ_c)] / [z²·(z - λ_c)]
 
-Set z = 0:   (1-lc) = C*(-lc)  =>  C = -(1-lc)/lc = (lc-1)/lc
+### 2.3 從 δx 到 δx_m
 
-Set z = lc:  lc^2 + (1-lc)*lc + (1-lc) = D*lc^3
-             lc^2 + lc - lc^2 + 1 - lc = D*lc^3
-             1 = D*lc^3  =>  D = 1/lc^3
+量測誤差是追蹤誤差的 2 步延遲版本：
 
-### 3.2 Direct computation via long division / recursion
+    δx_m[k] = δx[k-2]
+    δX_m(z) = z⁻² · δX(z)
 
-A more practical approach: compute h_norm[k] directly from the difference equation.
+因此從 f_T 到 δx_m 的轉移函數 (Paper 1, Eq.21)：
 
-From H_norm(z) = Y(z)/X(z) where input is delta[k]:
+    H_T(z⁻¹) = -a_x · [z² + (1-λ_c)·z + (1-λ_c)] / [z⁴·(z - λ_c)]
+                                                        ... (Paper 1, Eq.21)
 
-    z^2*(z-lc)*Y(z) = [z^2 + (1-lc)*z + (1-lc)] * X(z)
+**重要簡化**：計算變異數時，在單位圓 z = e^(jθ) 上 |z⁻²| = 1。
+額外的 z⁻² 只影響相位，不影響幅度。因此：
 
-In time domain (causal, h[k]=0 for k<0):
+    |H_T(e^(jθ))|² = |H_T,δx(e^(jθ))|²
 
-    h[k+3] - lc*h[k+2] = delta[k+2] + (1-lc)*delta[k+1] + (1-lc)*delta[k]
+### 2.4 歸一化轉移函數
 
-But it's even simpler to compute the impulse response of H_e(z) first,
-then shift by 2 for dzm.
+分離 -a_x 因子：
 
-From H_e(z): E(z) = -a_x * [z^2 + (1-lc)*z + (1-lc)] / [z^2*(z-lc)] * FT(z)
+    H_T(z⁻¹) = -a_x · H_norm(z)
 
-The impulse response of -a_x * H_norm(z) represents e[k]'s response to a
-unit impulse in fT at k=0. But since H_norm has z^2 in the denominator,
-the response starts at k=0 with causality.
+    H_norm(z) = [z² + (1-λ_c)·z + (1-λ_c)] / [z²·(z - λ_c)]
 
-**Let's just compute h_norm[k] by simulation of the error recursion.**
+變異數結構：
 
-Apply fT[0]=1, fT[k]=0 for k != 0 to:
+    Var(δx_m)|_thermal = σ²_fT · a_x² · C(λ_c)
 
-    e[k+1] = lc*e[k] - fT[k] - (1-lc)*fT[k-1] - (1-lc)*fT[k-2]
+其中 C(λ_c) = Σ |h_norm[k]|²（H_norm 的脈衝響應能量）。
 
-(We drop a_x because we're computing h_norm.)
+---
 
-    k=0: e[1] = lc*0 - 1 - 0 - 0 = -1
-    k=1: e[2] = lc*(-1) - 0 - (1-lc)*1 - 0 = -lc - 1 + lc = -1
-    k=2: e[3] = lc*(-1) - 0 - 0 - (1-lc)*1 = -lc - 1 + lc = -1
-    k=3: e[4] = lc*(-1) - 0 - 0 - 0 = -lc
-    k=4: e[5] = lc*(-lc) = -lc^2
-    k=5: e[6] = lc*(-lc^2) = -lc^3
+## Part 3: 脈衝響應與物理解讀
+
+### 3.1 直接計算脈衝響應
+
+對 f_T[0]=1, f_T[k]=0 (k≠0) 代入誤差遞迴式（省略 a_x 因子）：
+
+    δx[k+1] = λ_c·δx[k] - f_T[k] - (1-λ_c)·f_T[k-1] - (1-λ_c)·f_T[k-2]
+
+逐步計算：
+
+    k=0: δx[1] = λ_c·0 - 1 - 0 - 0                     = -1
+    k=1: δx[2] = λ_c·(-1) - 0 - (1-λ_c)·1 - 0          = -λ_c - 1 + λ_c = -1
+    k=2: δx[3] = λ_c·(-1) - 0 - 0 - (1-λ_c)·1          = -λ_c - 1 + λ_c = -1
+    k=3: δx[4] = λ_c·(-1) - 0 - 0 - 0                   = -λ_c
+    k=4: δx[5] = λ_c·(-λ_c)                              = -λ_c²
+    k=5: δx[6] = λ_c·(-λ_c²)                             = -λ_c³
     ...
 
-So h_e[k] (impulse response from fT to e, without -a_x factor):
+脈衝響應 h（從 f_T 到 δx，不含 -a_x）：
 
-    h_e = [0, -1, -1, -1, -lc, -lc^2, -lc^3, ...]
+    h = [0, -1, -1, -1, -λ_c, -λ_c², -λ_c³, ...]
 
-Note: h_e[0] = 0 because fT[0] affects e[1], not e[0].
+h[0] = 0 因為 f_T[0] 影響 δx[1] 而非 δx[0]。
 
-Now dzm[k] = e[k-2], so h_dzm[k] = h_e[k-2]:
+z⁻² 延遲移位不影響能量和，因此直接使用 h 的絕對值：
 
-    h_dzm = [0, 0, 0, -1, -1, -1, -lc, -lc^2, -lc^3, ...]
+    |h_norm| = [0, 1, 1, 1, λ_c, λ_c², λ_c³, ...]
 
-The normalized impulse response (absolute values for energy):
+### 3.2 物理解讀
 
-    |h_norm| = [0, 0, 0, 1, 1, 1, lc, lc^2, lc^3, ...]
+    h[0] = 0     : 脈衝尚未傳播
+    h[1] = -1    : f_T[0] 直接位移粒子，控制器因延遲無法觀測
+    h[2] = -1    : f_T[0] 經 (1-λ_c)·f_T[k-1] 路徑進入 ε[1]（延遲路徑）
+    h[3] = -1    : f_T[0] 經 (1-λ_c)·f_T[k-2] 路徑進入 ε[2]（延遲路徑）
+    h[k≥4] = -λ_c^(k-3) : AR(1) 衰減 — 控制器逐步修正
 
-### 3.3 Physical interpretation of each term
+變異數計算所需的能量和：
 
-    h_norm[0] = 0   : impulse at k=0 hasn't propagated yet
-    h_norm[1] = 0   : still within measurement delay
-    h_norm[2] = 0   : still within measurement delay
-    h_norm[3] = 1   : fT[0] directly displaces position, first visible in dzm
-    h_norm[4] = 1   : fT[0] enters w[1] via (1-lc)*fT[k-1] term (delay path)
-    h_norm[5] = 1   : fT[0] enters w[2] via (1-lc)*fT[k-2] term (delay path)
-    h_norm[k>=6] = lc^(k-5) : AR(1) decay — controller progressively corrects
+    Σ h[k]² = 0 + 1 + 1 + 1 + λ_c² + λ_c⁴ + λ_c⁶ + ...
+            = 3 + λ_c²/(1 - λ_c²)
 
-**Wait** — let me reconsider the indexing. The key question is whether we
-should compute the impulse response of H_e or of H (which includes the z^(-2)
-delay). For the variance computation, it doesn't matter because the delay
-just shifts the impulse response, and sum of squares is shift-invariant.
-
-For the variance, what matters is sum_{k} h_e[k]^2, which equals:
-
-    0^2 + 1^2 + 1^2 + 1^2 + lc^2 + lc^4 + lc^6 + ...
-    = 0 + 1 + 1 + 1 + lc^2 + lc^4 + ...
-    = 3 + lc^2/(1 - lc^2)
-
-This is C(lc).
+此即 C(λ_c)。
 
 ---
 
-## Part 4: Parseval's Theorem — The Core Mathematical Tool
+## Part 4: Parseval 定理
 
-### 4.1 Statement
+### 4.1 定理陳述
 
-For a causal, stable, discrete-time system with impulse response h[k], the
-total energy (sum of squares) can be computed in either domain:
+對因果穩定離散時間系統的脈衝響應 h[k]，總能量可在任一域計算：
 
-**Time domain:**
+**時域：**
 
-    sum_{k=0}^{inf} h[k]^2
+    Σ_{k=0}^{∞} h[k]²
 
-**Frequency domain:**
+**頻域：**
 
-    (1 / 2*pi) * integral_{-pi}^{pi} |H(e^(j*theta))|^2 d_theta
+    (1 / 2π) · ∫_{-π}^{π} |H(e^(jθ))|² dθ
 
-These are equal by Parseval's theorem.
+兩者相等。
 
-### 4.2 Real-valued system simplification
+### 4.2 實值系統簡化
 
-Since h[k] is real, |H(e^(j*theta))|^2 is symmetric about theta = 0:
+h[k] 為實數，故 |H(e^(jθ))|² 對 θ=0 對稱：
 
-    |H(e^(-j*theta))|^2 = |H(e^(j*theta))|^2
+    Σ h[k]² = (1/π) · ∫_{0}^{π} |H(e^(jθ))|² dθ
 
-Therefore:
+### 4.3 與變異數的關聯
 
-    sum h[k]^2 = (1/2*pi) * integral_{-pi}^{pi} |H(e^(j*theta))|^2 d_theta
-               = (1/pi) * integral_{0}^{pi} |H(e^(j*theta))|^2 d_theta
+若 f_T[k] 為變異數 σ²_fT 的白雜訊，δx_m[k] 為 H_T(z⁻¹) 驅動的輸出：
 
-**This is the "integral from 0 to pi" that the professor mentioned.**
+    Var(δx_m) = σ²_fT · Σ_{k=0}^{∞} h[k]²
+              = σ²_fT · (1/π) · ∫_{0}^{π} |H_T(e^(jθ))|² dθ
 
-### 4.3 Connection to variance
+### 4.4 z = e^(jθ) 的幾何意義
 
-If fT[k] is white noise with variance sigma_fT^2, and dzm[k] is the output
-of H(z) driven by fT[k], then:
+在 z = e^(jθ) 上評估 H(z)：
 
-    Var(dzm) = sigma_fT^2 * sum_{k=0}^{inf} h[k]^2
-             = sigma_fT^2 * (1/pi) * integral_{0}^{pi} |H(e^(j*theta))|^2 d_theta
+- z 描繪 z-平面上的**單位圓**
+- θ 從 0 到 π（利用對稱性只需半圓）
+- θ = 0: z = 1（直流，零頻率）
+- θ = π: z = -1（Nyquist 頻率，f_s/2）
+- |H(e^(jθ))|² 是白雜訊驅動時輸出的**功率譜密度**
 
-### 4.4 Geometric meaning of z = e^(j*theta)
-
-When we evaluate H(z) at z = e^(j*theta):
-
-- z traces the **unit circle** in the complex z-plane
-- theta goes from 0 to pi (half circle, by symmetry)
-- theta = 0: z = 1 (DC, zero frequency)
-- theta = pi: z = -1 (Nyquist frequency, f_s/2)
-- |H(e^(j*theta))|^2 is the **power spectral density** of the output
-  when driven by white noise
-
-The integral sweeps through all digital frequencies, summing the power
-contribution at each frequency.
+積分掃過所有數位頻率，累加各頻率的功率貢獻。
 
 ---
 
-## Part 5: Computing C(lc) = sum h_norm[k]^2
+## Part 5: 計算 C(λ_c) = 2 + 1/(1-λ_c²)
 
-### 5.1 From the impulse response
+### 5.1 直接求和
 
-Recall from Part 3:
+由 Part 3 的脈衝響應：
 
-    h_norm = [0, 1, 1, 1, lc, lc^2, lc^3, ...]
+    |h_norm| = [0, 1, 1, 1, λ_c, λ_c², λ_c³, ...]
 
-(Using h_e indexing; the z^(-2) shift doesn't affect the sum of squares.)
+    C(λ_c) = Σ_{k=0}^{∞} h_norm[k]²
+            = 0 + 1 + 1 + 1 + λ_c² + λ_c⁴ + λ_c⁶ + ...
+            = 3 + Σ_{n=1}^{∞} λ_c^(2n)
+            = 3 + λ_c² / (1 - λ_c²)       （等比級數，|λ_c| < 1）
 
-### 5.2 Direct summation
+### 5.2 化簡
 
-    C(lc) = sum_{k=0}^{inf} h_norm[k]^2
-           = 0^2 + 1^2 + 1^2 + 1^2 + lc^2 + lc^4 + lc^6 + ...
-           = 3 + sum_{n=1}^{inf} lc^(2n)
-           = 3 + lc^2 / (1 - lc^2)          (geometric series, |lc| < 1)
+    C(λ_c) = 3 + λ_c² / (1 - λ_c²)
+            = [3·(1 - λ_c²) + λ_c²] / (1 - λ_c²)
+            = (3 - 3·λ_c² + λ_c²) / (1 - λ_c²)
+            = (3 - 2·λ_c²) / (1 - λ_c²)
 
-### 5.3 Simplification
+### 5.3 驗證等價形式
 
-    C(lc) = 3 + lc^2 / (1 - lc^2)
-           = [3*(1 - lc^2) + lc^2] / (1 - lc^2)
-           = (3 - 3*lc^2 + lc^2) / (1 - lc^2)
-           = (3 - 2*lc^2) / (1 - lc^2)
+    2 + 1/(1 - λ_c²) = [2·(1-λ_c²) + 1] / (1-λ_c²)
+                       = (2 - 2·λ_c² + 1) / (1-λ_c²)
+                       = (3 - 2·λ_c²) / (1-λ_c²)   ✓
 
-### 5.4 Verify equivalence with 2 + 1/(1-lc^2)
+三種等價形式：
 
-    2 + 1/(1 - lc^2) = [2*(1-lc^2) + 1] / (1-lc^2)
-                      = (2 - 2*lc^2 + 1) / (1-lc^2)
-                      = (3 - 2*lc^2) / (1-lc^2)   checkmark
+    C(λ_c) = 3 + λ_c²/(1-λ_c²) = 2 + 1/(1-λ_c²) = (3 - 2·λ_c²)/(1-λ_c²)
 
-Both forms are identical:
+### 5.4 數值範例
 
-    C(lc) = 3 + lc^2/(1-lc^2) = 2 + 1/(1-lc^2) = (3 - 2*lc^2)/(1-lc^2)
+    λ_c     C(λ_c)
+    0.0     3.000
+    0.3     3.099
+    0.5     3.333
+    0.7     3.961
+    0.9     7.263
+    0.95   12.744
+    0.99   51.503
 
-### 5.5 Numerical values
-
-    lc    C(lc)
-    0.0   3.000
-    0.3   3.099
-    0.5   3.333
-    0.7   3.961
-    0.9   7.263
-    0.95  12.744
-    0.99  51.503
-
-C(lc) grows rapidly as lc -> 1 (less aggressive control = more variance).
+C(λ_c) 在 λ_c → 1 時急遽增長（控制越被動，變異數越大）。
 
 ---
 
-## Part 6: From C(lc) to Var(dzm) — Deriving Eq.11
+## Part 6: 從 C(λ_c) 到 σ²_δxr — 組裝 Paper 1 Eq.22 / Paper 2 Eq.11–12
 
-### 6.1 Variance of dzm
+### 6.1 追蹤誤差變異數（純熱力項）
 
-From Part 4.3:
+由 Part 4.3：
 
-    Var(dzm) = sigma_fT^2 * a_x^2 * C(lc)
+    Var(δx_m)|_thermal = σ²_fT · a_x² · C(λ_c)
 
-### 6.2 Substitute thermal noise variance
+### 6.2 代入熱力噪聲變異數
 
-The fluctuation-dissipation theorem gives:
+漲落耗散定理：
 
-    sigma_fT^2 = 4 * kB * T * gamma_SI / Ts        [N^2]
+    σ²_fT = 4·k_B·T·γ_SI / Δt        [N²]
 
-### 6.3 Substitute motion gain
+### 6.3 代入運動增益
 
-    a_x = Ts / gamma        [um/pN]
+    a_x = Δt / γ
 
-In SI units:
+SI 單位：
 
-    a_x_SI = Ts / gamma_SI  [m/N]
+    a_x,SI = Δt / γ_SI     [m/N]
 
-### 6.4 Combine
+### 6.4 關鍵消去
 
-    Var(dzm) = (4*kB*T*gamma_SI/Ts) * (Ts/gamma_SI)^2 * C(lc)   [m^2]
-             = (4*kB*T*gamma_SI/Ts) * Ts^2/gamma_SI^2 * C(lc)
-             = 4*kB*T * Ts/gamma_SI * C(lc)
-             = 4*kB*T * a_x_SI * C(lc)                           [m^2]
+    Var(δx_m) = (4·k_B·T·γ_SI/Δt) · (Δt/γ_SI)² · C(λ_c)     [m²]
+              = (4·k_B·T·γ_SI/Δt) · Δt²/γ_SI² · C(λ_c)
+              = 4·k_B·T · Δt/γ_SI · C(λ_c)
+              = 4·k_B·T · a_x,SI · C(λ_c)                      [m²]
 
-Converting to [um^2]:
+γ 出現在 σ²_fT 和 a_x² 中，相消後只剩 a_x = Δt/γ。
 
-    Var(dzm) = 4*kB*T * a_x * C(lc)    [mixed units, with appropriate conversion]
+### 6.5 Paper 2 Eq.11: 熱力項
 
-Or more explicitly:
+    σ²_δxT = C(λ_c) · 4·k_B·T · a_x                ... (Paper 2, Eq.11)
 
-    sig2_dxr = C(lc) * 4 * kB * T * a_x                   ... Eq.11
+其中 σ²_δxT 是熱力運動造成的追蹤誤差變異數。
 
-where the unit chain is:
-- 4*kB*T has units [J] = [N*m]
-- a_x has units [um/pN]
-- a_x [um/pN] = a_x * 1e6 [m/N]   (since 1 um = 1e-6 m, 1 pN = 1e-12 N)
-- 4*kB*T*a_x: [N*m] * [m/N] = [m^2] (with the 1e6 factor for unit conversion)
+物理意義：變異數正比於遷移率 a_x，這是從熱漲落量測 γ 的物理基礎。
 
-**This is Eq.11.** The crucial cancellation: gamma appears in both sigma_fT^2
-and a_x^2, and cancels to leave only a_x (= Ts/gamma). This is why the
-variance is proportional to the mobility, which is the physical basis for
-measuring gamma from thermal fluctuations.
+### 6.6 從 σ²_δx 到 σ²_δxr (Paper 2, Eq.9–10)
 
----
+Paper 2 使用 IIR 濾波器分離量測追蹤誤差的隨機分量 (Paper 2, Eq.9)：
 
-## Part 7: Physical Interpretation of C(lc) = 2 + 1/(1-lc^2)
+    δx_r[k] = δx_m[k] - δx̄_m[k]
 
-### 7.1 Decomposing C(lc)
+其中 δx̄_m[k] 為 IIR 低通濾波後的平均分量。
 
-    C(lc) = 2 + 1/(1-lc^2)
-
-The two terms have distinct physical origins:
-
-### 7.2 The "2" — delay contribution
-
-More precisely, C(lc) = 1 + 1 + 1/(1-lc^2), and we can trace:
-
-    h_norm[1]^2 = 1  :  fT[0] displaces position at k=0,
-                         but controller at k=0 can't see it (delay)
-                         → fT[0] appears unattenuated in dzm
-
-    h_norm[2]^2 = 1  :  fT[0] enters the prediction error e_hat[1]
-                         via the (1-lc)*fT[k-1] term in w[k]
-                         → the delay compensation "overshoots"
-
-These 2 units of energy come from the d=2 measurement delay.
-**In general, for d-step delay, this term would be d.**
-
-But wait — there's also h_norm[3]^2 = 1. Where does the third "1" go?
-
-### 7.3 The "1/(1-lc^2)" — AR(1) variance amplification
-
-    1/(1-lc^2) = 1 + lc^2 + lc^4 + lc^6 + ...
-
-This is the geometric series starting from h_norm[3]:
-
-    h_norm[3]^2 + h_norm[4]^2 + h_norm[5]^2 + ...
-    = 1^2 + lc^2 + lc^4 + ...
-    = 1/(1-lc^2)
-
-The first term (1^2 = 1) is from h[3]: the fT[0] impulse entering via the
-(1-lc)*fT[k-2] path in w[k]. After that, the AR(1) dynamics e[k+1]=lc*e[k]
-cause each subsequent contribution to decay by lc.
-
-So the decomposition is:
-
-    C(lc) = { h[1]^2 + h[2]^2 } + { h[3]^2 + h[4]^2 + ... }
-           = { 1 + 1 }           + { 1/(1-lc^2) }
-           = 2                    + 1/(1-lc^2)
-
-### 7.4 Alternative decomposition: 1 + 1 + 1/(1-lc^2)
-
-    C(lc) = 1 + 1 + 1/(1-lc^2)
-
-- First "1": direct displacement by fT (visible after delay)
-- Second "1": delay compensation overshoot in prediction
-- 1/(1-lc^2): steady-state AR(1) amplification (includes the third
-  noise injection via the (1-lc)*fT[k-2] term, plus all subsequent decay)
-
-### 7.5 Why C(lc) -> infinity as lc -> 1
-
-When lc -> 1, the controller becomes passive (barely corrects errors).
-Each thermal impulse persists almost forever: the geometric series
-1 + lc^2 + lc^4 + ... diverges. Physically, a nearly-passive controller
-lets the probe diffuse freely under thermal noise.
-
-### 7.6 Why C(lc) -> 3 as lc -> 0
-
-When lc -> 0, the controller is maximally aggressive (deadbeat). Each error
-is corrected in one step. But the 2-step delay is irreducible — the controller
-still can't see the most recent 2 steps of thermal noise. Plus the third
-unit from the transient gives C(0) = 3.
+σ²_δxr 與 σ²_δx 的結構相同（Paper 2, Eq.10→12），因為 IIR 濾波器的
+引入不改變熱力項的係數結構，僅改變量測雜訊項（見 Part 9）。
 
 ---
 
-## Part 8: MATLAB Numerical Verification
+## Part 7: 物理意義 — C(λ_c) = 2 + 1/(1-λ_c²) 的分解
 
-Three independent verification methods are implemented in `verify_eq12_spectral.m`:
+### 7.1 分解
 
-### 8.1 Method 1: Impulse response summation
+    C(λ_c) = { h[1]² + h[2]² } + { h[3]² + h[4]² + ... }
+            = {   1   +   1   } + {     1/(1-λ_c²)       }
+            = 2                  + 1/(1-λ_c²)
 
-Compute h_norm[k] for k = 0, 1, ..., K (truncated), then:
+### 7.2 "2" — 延遲貢獻
 
-    C_impulse = sum_{k=0}^{K} h_norm[k]^2
+    h[1]² = 1 : f_T[0] 直接位移粒子，但控制器在 k=0 因延遲無法觀測
+                → f_T[0] 在 δx_m 中不衰減地出現
 
-Compare with C(lc) = 2 + 1/(1-lc^2).
+    h[2]² = 1 : f_T[0] 經由 ε[1] 中的 (1-λ_c)·f_T[k-1] 項進入
+                → 延遲補償的「預測超調」
 
-### 8.2 Method 2: Frequency-domain integration (Parseval's)
+這 2 單位能量來自 d=2 的量測延遲。
+**一般而言，d 步延遲會產生 d 單位的延遲貢獻。**
 
-Evaluate |H_norm(e^(j*theta))|^2 at theta = linspace(0, pi, N_pts), then:
+### 7.3 "1/(1-λ_c²)" — AR(1) 變異數放大
 
-    C_spectral = (1/pi) * trapz(theta, |H_norm(e^(j*theta))|^2)
+    1/(1-λ_c²) = 1 + λ_c² + λ_c⁴ + λ_c⁶ + ...
 
-This is the "integral from 0 to pi" approach.
+對應等比級數從 h[3] 開始：
 
-### 8.3 Method 3: Lyapunov equation
+    h[3]² + h[4]² + h[5]² + ...
+    = 1² + λ_c² + λ_c⁴ + ...
+    = 1/(1-λ_c²)
 
-Use the augmented state-space model from Part 1:
+第一項 (1² = 1) 來自 f_T[0] 經 ε[2] 中的 (1-λ_c)·f_T[k-2] 路徑。
+之後 AR(1) 動態 δx[k+1] = λ_c·δx[k] 使每個後續貢獻以 λ_c 衰減。
 
-    A = [ lc,  -(1-lc)*a_x,  -(1-lc)*a_x ]     B = [ -a_x ]
-        [  0,       0,              0       ]         [   1   ]
-        [  0,       1,              0       ]         [   0   ]
+### 7.4 極限行為
 
-Solve P = A*P*A' + B*sigma_fT^2*B', then Var(e) = P(1,1).
+**λ_c → 1（被動控制）：** C(λ_c) → ∞。控制器幾乎不修正誤差，
+每個熱力脈衝持續存在，等比級數 1 + λ_c² + λ_c⁴ + ... 發散。
+物理上，近乎被動的控制器讓探針在熱雜訊下自由擴散。
 
-Or equivalently with B_norm = B/a_x:
+**λ_c → 0（deadbeat 控制）：** C(λ_c) → 3。控制器一步修正所有誤差，
+但 2 步延遲不可消除 — 控制器仍然無法觀測到最近 2 步的熱力噪聲。
+加上暫態的第三個單位，得 C(0) = 3。
 
-    P_norm = A * P_norm * A' + B_norm * B_norm'
+---
+
+## Part 8: MATLAB 數值驗證
+
+四種獨立驗證方法實作於 `verify_eq12_spectral.m`：
+
+### 8.1 方法 1: 脈衝響應求和
+
+計算 h_norm[k] (k = 0, 1, ..., K)，然後：
+
+    C_impulse = Σ_{k=0}^{K} h_norm[k]²
+
+與 C(λ_c) = 2 + 1/(1-λ_c²) 比較。
+
+### 8.2 方法 2: 頻域積分 (Parseval)
+
+在 θ = linspace(0, π, N_pts) 評估 |H_norm(e^(jθ))|²，然後：
+
+    C_spectral = (1/π) · trapz(θ, |H_norm(e^(jθ))|²)
+
+### 8.3 方法 3: Lyapunov 方程
+
+使用 Part 1 的增廣狀態空間模型：
+
+    A = [ λ_c,  -(1-λ_c)·a_x,  -(1-λ_c)·a_x ]     B = [ -a_x ]
+        [  0,        0,               0        ]         [   1   ]
+        [  0,        1,               0        ]         [   0   ]
+
+解 P = A·P·A' + B·σ²_fT·B'，則 Var(δx) = P(1,1)。
+
+或等價地，用 B_norm = B/a_x：
+
+    P_norm = A · P_norm · A' + B_norm · B_norm'
     C_lyap = P_norm(1,1)
 
-### 8.4 Method 4: Direct Monte Carlo simulation
+### 8.4 方法 4: 直接 Monte Carlo 模擬
 
-Run the closed-loop system for 80000 steps with thermal noise,
-compute Var(dzm) over the steady-state portion, then:
+運行閉迴路系統 80000 步加入熱力噪聲，
+取穩態部分計算 Var(δx_m)，然後：
 
-    C_sim = Var(dzm) / (sigma_fT^2 * a_x^2)
+    C_sim = Var(δx_m) / (σ²_fT · a_x²)
 
-Compare all four C values.
+四種 C 值相互比較驗證。
 
 ---
 
-## Part 9: Measurement Noise Term — (2/(1+lc)) * sigma_nx^2
+## Part 9: 量測雜訊項 — Paper 1 Eq.22 vs. Paper 2 Eq.12
 
-### 9.1 Setup
+### 9.1 量測雜訊設定
 
-Measurement noise n[k] is added to the position measurement:
+量測雜訊 n_x[k] 疊加在位置量測上：
 
-    dzm_noisy[k] = dzm[k] + n[k]
+    δx_m,noisy[k] = δx[k-2] + n_x[k]
 
-where n[k] ~ N(0, sigma_nx^2), independent of fT.
+其中 n_x[k] ~ N(0, σ²_nx)，與 f_T 獨立。
 
-The noise n[k] enters the controller through e_hat:
+雜訊 n_x[k] 經由控制器進入系統：
 
-    e_hat_noisy[k] = e_hat[k] + n[k]
+    δx̂_noisy[k] = δx̂[k] + n_x[k]
 
-### 9.2 Transfer function from n to dzm
+### 9.2 從 n_x 到 δx 的轉移函數 H_n(z⁻¹) (Paper 1, Eq.21)
 
-Measurement noise n[k] enters the system differently from thermal noise fT.
-It enters through the control law:
+n_x[k] 經控制律進入系統：
 
-    fd[k] = (1/a_x)*(1-lc)*e_hat_noisy[k]
-           = (1/a_x)*(1-lc)*(e_hat[k] + n[k])
+    f_d[k] = (1/a_x)·(1-λ_c)·δx̂_noisy[k]
+            = (1/a_x)·(1-λ_c)·(δx̂[k] + n_x[k])
 
-The additional control force due to n is:
+n_x 造成的額外控制力：
 
-    delta_fd[k] = (1/a_x)*(1-lc)*n[k]
+    Δf_d[k] = (1/a_x)·(1-λ_c)·n_x[k]
 
-This propagates through the plant:
+傳播通過植物：
 
-    delta_e[k+1] = lc*delta_e[k] - (1-lc)*n[k]
+    Δδx[k+1] = λ_c·Δδx[k] - (1-λ_c)·n_x[k]
 
-And the transfer function from n to e is:
+從 n_x 到 δx 的轉移函數：
 
-    H_n_e(z) = -(1-lc) / (z - lc)
+    H_n,δx(z) = -(1-λ_c) / (z - λ_c)
 
-From n to dzm (including 2-step delay):
+### 9.3 Paper 1 Eq.22 的量測雜訊係數：(1-λ_c)/(1+λ_c)
 
-    H_n(z) = z^(-2) * H_n_e(z) = -(1-lc) / [z^2*(z - lc)]
+H_n,δx(z) = -(1-λ_c)/(z-λ_c) 的脈衝響應：
 
-### 9.3 Variance contribution from measurement noise
+    h_n[k] = -(1-λ_c) · λ_c^k    (k ≥ 0)
 
-    Var(dzm)|_noise = sigma_nx^2 * sum |h_n[k]|^2
+能量和：
 
-Impulse response of H_n_norm(z) = (1-lc)/(z-lc):
+    Σ h_n[k]² = (1-λ_c)² · Σ λ_c^(2k)
+              = (1-λ_c)² / (1-λ_c²)
+              = (1-λ_c)² / [(1-λ_c)·(1+λ_c)]
+              = (1-λ_c) / (1+λ_c)
 
-    h_n[k] = (1-lc) * lc^k    for k >= 0
+若只考慮 n_x 經由控制器傳播再回到 δx_m 的路徑，
+量測雜訊對 δx 變異數的貢獻為：
 
-    sum h_n[k]^2 = (1-lc)^2 * sum lc^(2k) = (1-lc)^2 / (1-lc^2)
-                 = (1-lc)^2 / [(1-lc)(1+lc)]
-                 = (1-lc) / (1+lc)
+    Var(δx)|_noise = (1-λ_c)/(1+λ_c) · σ²_nx       ... (Paper 1, Eq.22 中的係數)
 
-Wait — this doesn't include the z^(-2) delay effect on the noise path.
-Let me reconsider.
+### 9.4 Paper 2 Eq.12 的量測雜訊係數：2/(1+λ_c)
 
-Actually, for the measurement noise, the situation is different because n[k]
-directly affects the measurement dzm[k] AND enters the controller. Let me
-trace through more carefully.
+Paper 2 考慮的是 **δx_r[k] = δx_m[k] - δx̄_m[k]** 的完整變異數，
+其中包含 n_x[k] 的直接加成效應和經控制器傳播的效應。
 
-### 9.4 Careful derivation of measurement noise contribution
+觀測信號 δx_m,noisy[k] = δx[k-2] + n_x[k] 的完整變異數：
 
-The measured signal with noise:
+    Var(δx_m,noisy) = Var(δx[k-2]) + σ²_nx
 
-    dzm_noisy[k] = e[k-2] + n[k]
+（因 n_x[k] 與 δx[k-2] 獨立 — n_x[k] 影響 δx[k-1] 及之後，而非 δx[k-2]。）
 
-The controller uses this:
+δx[k-2] 中包含 n_x 經控制器傳播的分量，貢獻 (1-λ_c)/(1+λ_c)·σ²_nx。
 
-    e_hat_noisy[k] = dzm_noisy[k] - a_x*(fd[k-2]+fd[k-1])
-                   = e_hat[k] + n[k]
+合計量測雜訊係數：
 
-The error dynamics become:
+    C_n = 1 + (1-λ_c)/(1+λ_c) = 2/(1+λ_c)
 
-    e[k+1] = lc*e[k] + w[k] - (1-lc)*n[k]
+分解：
+- "1" 來自直接加成的量測雜訊：n_x[k] 加在 δx_m[k] 上
+- "(1-λ_c)/(1+λ_c)" 來自雜訊驅動的誤差經 AR(1) 動態傳播再經 2 步延遲回到 δx_m
 
-(The n[k] enters through the control action at step k.)
+數值範例：
+- λ_c = 0（deadbeat）：2/(1+0) = 2
+- λ_c = 0.5：2/(1+0.5) = 1.333
+- λ_c → 1（被動）：2/(1+1) = 1
 
-For the **observed** signal dzm_noisy[k] = e[k-2] + n[k], its variance has
-two independent contributions:
+λ_c → 1 時，控制器對 n_x 幾乎不反應，雜訊貢獻趨近 σ²_nx（僅直接量測雜訊）。
 
-    Var(dzm_noisy) = Var(e[k-2]) + Var(n[k]) + 2*Cov(e[k-2], n[k])
+### 9.5 兩篇論文係數差異的物理原因
 
-Since n[k] is independent of e[k-2] (n[k] affects e[k-1] and later,
-not e[k-2]):
+| | Paper 1 Eq.22 | Paper 2 Eq.12 |
+|--|---|---|
+| 量測雜訊係數 | (1-λ_c)/(1+λ_c) | 2/(1+λ_c) |
+| 衡量的量 | n_x 經控制器傳播到 δx 的分量 | δx_r 的完整變異數（含直接 n_x） |
+| 差異 | 不含直接加成項 | 含直接加成項 "+1" |
 
-    Var(dzm_noisy) = Var(e) + sigma_nx^2
+關係：2/(1+λ_c) = (1-λ_c)/(1+λ_c) + 1
 
-But e[k] now has additional noise from n. The full variance is:
+### 9.6 完整公式
 
-    Var(dzm_noisy) = C(lc)*sigma_fT^2*a_x^2 + C_n(lc)*sigma_nx^2
+**Paper 1, Eq.22 — 追蹤誤差變異數 σ²_δx：**
 
-where C_n captures the measurement noise amplification.
+    σ²_δx = C(λ_c)·4·k_B·T·a_x + (1-λ_c)/(1+λ_c)·σ²_nx
+                                                        ... (Paper 1, Eq.22)
 
-The noise n[k] enters the error recursion: e[k+1] = lc*e[k] + w[k] - (1-lc)*n[k].
+**Paper 2, Eq.12 — 隨機分量變異數 σ²_δxr（含 IIR 濾波後的直接雜訊）：**
 
-Through the AR(1) dynamics, the contribution of n to Var(e) is:
+    σ²_δxr = C(λ_c)·4·k_B·T·a_x + 2/(1+λ_c)·σ²_nx
+                                                        ... (Paper 2, Eq.12)
 
-    (1-lc)^2 * sigma_nx^2 / (1-lc^2) = (1-lc)/(1+lc) * sigma_nx^2
+    其中 C(λ_c) = 2 + 1/(1-λ_c²)
 
-Additionally, the direct additive noise on dzm contributes sigma_nx^2.
+### 9.7 反解運動增益 (Paper 2, Eq.13)
 
-But we must also consider correlations. Since dzm_noisy[k] = e[k-2] + n[k],
-and n[k-2] contributes to e[k-2] through the recursion, there is a correlation.
+從 Paper 2 Eq.12 解出 a_x：
 
-The full result from the literature is:
+    a_xm = { σ²_δxr - 2/(1+λ_c)·σ²_nx } / { 4·k_B·T·C(λ_c) }
+                                                        ... (Paper 2, Eq.13)
 
-    Var(dzm_noisy) = C(lc)*4*kB*T*a_x + (2/(1+lc))*sigma_nx^2
+此為系統量測局部阻力係數的方法：量測追蹤誤差變異數，減去已知量測雜訊貢獻，
+除以熱力與控制放大因子。
 
-### 9.5 Verifying the coefficient 2/(1+lc)
+由 a_xm 可反推 γ：
 
-The coefficient 2/(1+lc) can be decomposed:
-
-    2/(1+lc) = 1 + (1-lc)/(1+lc)
-
-- The "1" comes from the direct additive measurement noise: n[k] added to dzm[k]
-- The (1-lc)/(1+lc) comes from the noise-driven error propagation through
-  the AR(1) dynamics and then back through the 2-step delay to dzm
-
-For lc = 0 (deadbeat):  2/(1+0) = 2
-For lc = 0.5:           2/(1+0.5) = 1.333
-For lc -> 1 (passive):  2/(1+1) = 1
-
-As lc -> 1, the controller barely reacts to n, so the noise contribution
-approaches just sigma_nx^2 (direct measurement noise only).
-
-### 9.6 Complete Eq.12
-
-Combining thermal noise (Part 6) and measurement noise (Part 9):
-
-    sig2_dxr = C(lc) * 4*kB*T*a_x + (2/(1+lc)) * sigma_nx^2       ... Eq.12
-
-    where C(lc) = 2 + 1/(1-lc^2)
-
-### 9.7 Inverting to get Eq.13
-
-Solving for a_x:
-
-    a_x = {sig2_dxr - (2/(1+lc))*sigma_nx^2} / {4*kB*T * C(lc)}   ... Eq.13
-
-This is how the system measures the local drag coefficient: measure the
-tracking error variance, subtract the known measurement noise contribution,
-divide by the thermal and control amplification factors.
+    γ = Δt / a_xm
 
 ---
 
-## Appendix A: Quick Reference of Key Results
+## Appendix: Quick Reference
 
-### Transfer functions
+### 轉移函數 (Paper 1, Eq.21)
 
-    H_e(z) = -a_x * [z^2 + (1-lc)*z + (1-lc)] / [z^2*(z-lc)]     (fT -> e)
-    H(z)   = z^(-2) * H_e(z)                                       (fT -> dzm)
+    H_T(z⁻¹) = -a_x · [z² + (1-λ_c)·z + (1-λ_c)] / [z²·(z - λ_c)]     (f_T → δx)
+    H_n(z⁻¹) = -(1-λ_c) / (z - λ_c)                                      (n_x → δx)
 
-### Impulse response (normalized by -a_x)
+### 脈衝響應（歸一化，除以 -a_x）
 
-    h_norm = [0, 1, 1, 1, lc, lc^2, lc^3, ...]
+    h_norm = [0, 1, 1, 1, λ_c, λ_c², λ_c³, ...]
 
-### C factor
+### C 因子
 
-    C(lc) = sum h_norm[k]^2 = 2 + 1/(1-lc^2) = (3-2*lc^2)/(1-lc^2)
+    C(λ_c) = Σ h_norm[k]² = 2 + 1/(1-λ_c²) = (3 - 2·λ_c²)/(1-λ_c²)
 
-### Variance formula (Eq.12)
+### 變異數公式
 
-    sig2_dxr = (2 + 1/(1-lc^2)) * 4*kB*T*a_x + (2/(1+lc)) * sigma_nx^2
+    σ²_δx  = C(λ_c)·4·k_B·T·a_x + (1-λ_c)/(1+λ_c)·σ²_nx     ... (Paper 1, Eq.22)
+    σ²_δxr = C(λ_c)·4·k_B·T·a_x + 2/(1+λ_c)·σ²_nx            ... (Paper 2, Eq.12)
 
-### Motion gain estimation (Eq.13)
+### 運動增益估測
 
-    a_xm = {sig2_dxr - (2/(1+lc))*sigma_nx^2} / {4*kB*T*(2+1/(1-lc^2))}
+    a_xm = { σ²_δxr - 2/(1+λ_c)·σ²_nx } / { 4·k_B·T·(2 + 1/(1-λ_c²)) }
+                                                                 ... (Paper 2, Eq.13)
