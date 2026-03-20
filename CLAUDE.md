@@ -4,7 +4,7 @@
 
 ## Architecture
 
-- Root: Simulink model (.slx) + driver scripts (run_case1.m, path_control.m)
+- Root: Simulink model (.slx) + driver scripts (run_case1.m, run_case1_Cdx.m, path_control.m)
 - verify/: Standalone verification scripts (no Simulink dependency)
 - docs/: Derivation documents (.md, .tex)
 - figures/: All generated figure files (.png)
@@ -19,8 +19,11 @@ Run verification scripts via MATLAB MCP:
 - verify/verify_eq13_estimator.m — Estimator vs Eq.17
 - verify/verify_eq13_unified.m — Three-method comparison
 - verify/verify_eq12_spectral_PP.m — Observer C_obs verification
+- verify/verify_Cdx.m — C_dx(lc, Avar) formula vs Lyapunov vs Monte Carlo
 
-Run Simulink: run_case1.m (requires Simulink desktop open)
+Run Simulink:
+- run_case1.m — Single-run Case 1 verification (requires Simulink desktop)
+- run_case1_Cdx.m — Sweep Avar x lc, compare Simulink Var(dz_k2) vs C_dx formula
 
 ## Verification Expected Results
 
@@ -29,6 +32,8 @@ Run Simulink: run_case1.m (requires Simulink desktop open)
 - verify_eq13.m: PASS (direct method errors < 5%)
 - verify_eq13_estimator.m: Both estimator and Eq.17 recover a_x within 5%
 - verify_eq13_unified.m: Eq.17 matches theory; PP and EKF add observer variance
+- verify_Cdx.m: C_dx formula matches Lyapunov for av=0,0.005; diverges at av=0.5 (up to 91%)
+- run_case1_Cdx.m: Simulink Var(dz_k2) ~43-52% below Lyapunov (EKF observer effect); lc=0.3 unstable
 
 ## MATLAB Conventions
 

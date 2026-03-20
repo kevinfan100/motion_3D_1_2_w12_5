@@ -12,6 +12,13 @@
 | fig_case1_variance_lc{X}.png | run_case1.m | Running variance vs time from Simulink |
 | fig_verification.png | verify/verify_eq12_spectral.m | C(lc) 4-way verification |
 
+| fig_Cdx_verify.png | verify/verify_Cdx.m | C_dx formula vs MC simulation |
+| fig_Cdx_lyapunov.png | verify/verify_Cdx.m | Lyapunov (solid) vs C_dx formula (dashed) vs MC |
+| fig_Cdx_observer.png | verify/verify_Cdx.m | Observer+IIR vs Eq.17+IIR comparison |
+| fig_Cdx_signal.png | verify/verify_Cdx.m | Signal-level diagnostics |
+| fig_Cdx_simulink.png | run_case1_Cdx.m | C_dx formula vs Simulink Var(dz_k2) sweep |
+| fig_Cdx_iir.png | (MATLAB session) | Lyapunov variance vs lc for Avar=0/0.005/0.5/0.7 |
+
 ## Standalone / Separately Generated
 
 | Figure File | Script | Description |
