@@ -54,7 +54,9 @@ L3 = (1 - lambda_e)^3;
 C_formula  = zeros(n_av, n_lc);
 C_lyapunov = zeros(n_av, n_lc);
 C_sim      = zeros(n_av, n_lc);
+C_sim_dzr  = zeros(n_av, n_lc);
 C_sim_obs  = zeros(n_av, n_lc);
+C_sim_dzr_obs = zeros(n_av, n_lc);
 
 %% ===== Main loop =====
 for ai = 1:n_av
@@ -86,6 +88,7 @@ for ai = 1:n_av
         z_hist = z_d * ones(N_steps, 1);
         fd_hist = zeros(N_steps, 1);
         dzm_all = zeros(N_steps, 1);
+        dzr_all = zeros(N_steps, 1);
         dzm_bar = 0;
 
         for k = 1:N_steps
@@ -101,6 +104,7 @@ for ai = 1:n_av
             % a_var=0: dzm_bar = dzm (no filter = Eq.17)
             % a_var>0: smoothing
             dzm_bar = av * dzm_bar + (1 - av) * dzm;
+            dzr_all(k) = dzm - dzm_bar;   % high-pass residual
 
             % --- Controller (Eq.17 form with dzm_bar) ---
             if k >= 2, fd_km1 = fd_hist(k-1); else, fd_km1 = 0; end
@@ -118,6 +122,8 @@ for ai = 1:n_av
         ss = steady_start:N_steps;
         var_dzm = var(dzm_all(ss));
         C_sim(ai, idx) = var_dzm / (sigma_fT_pN^2 * a_x^2);
+        var_dzr = var(dzr_all(ss));
+        C_sim_dzr(ai, idx) = var_dzr / (sigma_fT_pN^2 * a_x^2);
 
         % --- Observer+IIR Monte Carlo (Simulink-style) ---
         rng(42 + idx);
@@ -126,6 +132,7 @@ for ai = 1:n_av
         z_obs      = z_d;
         z_hist_obs = z_d * ones(N_steps, 1);
         dzm_all_obs = zeros(N_steps, 1);
+        dzr_all_obs = zeros(N_steps, 1);
         dz1_hat = 0;  dz2_hat = 0;  dz3_hat = 0;
         dzm_bar_obs = 0;
 
@@ -140,6 +147,7 @@ for ai = 1:n_av
 
             % IIR filter (same as Eq.17 path)
             dzm_bar_obs = av * dzm_bar_obs + (1 - av) * dzm_obs;
+            dzr_all_obs(k) = dzm_obs - dzm_bar_obs;   % high-pass residual
 
             % Innovation uses dzm_bar (Simulink x-axis style)
             innov = dzm_bar_obs - dz1_hat;
@@ -161,6 +169,8 @@ for ai = 1:n_av
 
         var_dzm_obs = var(dzm_all_obs(ss));
         C_sim_obs(ai, idx) = var_dzm_obs / (sigma_fT_pN^2 * a_x^2);
+        var_dzr_obs = var(dzr_all_obs(ss));
+        C_sim_dzr_obs(ai, idx) = var_dzr_obs / (sigma_fT_pN^2 * a_x^2);
     end
 end
 
@@ -177,24 +187,44 @@ for ai = 1:n_av
         fprintf('--- a_var = %.3f  (%.1f%% old + %.1f%% new) ---\n', ...
             av, av*100, (1-av)*100);
     end
-    fprintf('  %-6s  %-10s  %-10s  %-14s  %-14s  %-14s  %-14s  %-10s  %-10s\n', ...
+    fprintf('  %-6s  %-10s  %-10s  %-14s  %-14s  %-14s  %-14s  %-14s  %-14s\n', ...
         'lc', 'C_dx', 'C_lyap', 'formula(um^2)', 'lyap(um^2)', ...
-        'sim_eq17(um^2)', 'sim_obs(um^2)', 'eq17vslyap', 'obsvslyap');
-    fprintf('  %s\n', repmat('-', 1, 115));
+        'sim_dzm(um^2)', 'sim_dzr(um^2)', 'sim_obs(um^2)', 'dzr_obs(um^2)');
+    fprintf('  %s\n', repmat('-', 1, 135));
     for idx = 1:n_lc
         lc = lambda_c_list(idx);
         cf = C_formula(ai, idx);
         cl = C_lyapunov(ai, idx);
         cs = C_sim(ai, idx);
+        cr = C_sim_dzr(ai, idx);
         co = C_sim_obs(ai, idx);
+        cor = C_sim_dzr_obs(ai, idx);
         vf = cf * base_var;
         vl = cl * base_var;
         vs = cs * base_var;
+        vr = cr * base_var;
         vo = co * base_var;
-        err_sl = (vs - vl) / vl * 100;
-        err_ol = (vo - vl) / vl * 100;
-        fprintf('  %-6.1f  %-10.4f  %-10.4f  %-14.4e  %-14.4e  %-14.4e  %-14.4e  %+.2f%%     %+.2f%%\n', ...
-            lc, cf, cl, vf, vl, vs, vo, err_sl, err_ol);
+        vor = cor * base_var;
+        if av == 0
+            dzr_str = 'N/A (dzr=0)   ';
+            dzr_obs_str = 'N/A (dzr=0)   ';
+        else
+            dzr_str = sprintf('%-14.4e', vr);
+            dzr_obs_str = sprintf('%-14.4e', vor);
+        end
+        fprintf('  %-6.1f  %-10.4f  %-10.4f  %-14.4e  %-14.4e  %-14.4e  %s  %-14.4e  %s\n', ...
+            lc, cf, cl, vf, vl, vs, dzr_str, vo, dzr_obs_str);
+    end
+    % Error summary for dzr vs C_dx (skip av=0)
+    if av > 0
+        fprintf('  dzr vs C_dx errors:');
+        for idx = 1:n_lc
+            vf = C_formula(ai, idx) * base_var;
+            vr = C_sim_dzr(ai, idx) * base_var;
+            err_dzr = (vr - vf) / vf * 100;
+            fprintf('  lc=%.1f: %+.2f%%', lambda_c_list(idx), err_dzr);
+        end
+        fprintf('\n');
     end
     fprintf('\n');
 end
@@ -351,3 +381,56 @@ grid on;
 
 saveas(fig3, fullfile(fig_dir, 'fig_Cdx_observer.png'));
 fprintf('Figure saved to figures/fig_Cdx_observer.png\n');
+
+%% ===== Figure 4: C_dx vs Var(dzr) — IIR high-pass residual =====
+% Only plot av > 0 (av=0 gives dzr=0 trivially)
+av_plot_idx = find(a_var_list > 0);
+colors_dzr = [0.85 0.33 0.1;    % red
+              0.47 0.67 0.19;    % green
+              0 0.45 0.74];      % blue (spare)
+
+fig4 = figure('Position', [50 50 950 600], 'Color', 'w');
+hold on;
+
+for ii = 1:length(av_plot_idx)
+    ai = av_plot_idx(ii);
+    av = a_var_list(ai);
+    col = colors_dzr(ii, :);
+
+    % C_dx formula curve
+    C_f_dense = arrayfun(@(lc) C_dx_func(lc, av), lc_dense);
+    sigma2_f = C_f_dense * base_var;
+    plot(lc_dense, sigma2_f, '-', 'Color', col, ...
+        'LineWidth', 2.5, 'DisplayName', sprintf('C_{dx} formula: a_{var}=%.3f', av));
+
+    % Var(dzr) MC markers (Eq.17+IIR)
+    sigma2_dzr_pts = C_sim_dzr(ai, :) * base_var;
+    plot(lambda_c_list, sigma2_dzr_pts, 'o', ...
+        'Color', col, 'MarkerSize', 11, ...
+        'MarkerFaceColor', col, 'LineWidth', 1.5, ...
+        'DisplayName', sprintf('Var(dzr) Eq.17: a_{var}=%.3f', av));
+
+    % Var(dzr) MC markers (Observer+IIR)
+    sigma2_dzr_obs_pts = C_sim_dzr_obs(ai, :) * base_var;
+    plot(lambda_c_list, sigma2_dzr_obs_pts, 's', ...
+        'Color', col*0.6, 'MarkerSize', 12, ...
+        'MarkerFaceColor', 'none', 'LineWidth', 2, ...
+        'DisplayName', sprintf('Var(dzr) Obs: a_{var}=%.3f', av));
+
+    % Lyapunov reference (dashed)
+    sigma2_lyap = C_lyap_dense(ai, :) * base_var;
+    plot(lc_dense, sigma2_lyap, '--', 'Color', col*0.5, ...
+        'LineWidth', 1.5, 'DisplayName', sprintf('Lyapunov(dzm): a_{var}=%.3f', av));
+end
+hold off;
+
+xlabel('\lambda_c', 'FontSize', 14, 'FontWeight', 'bold');
+ylabel('Tracking error variance  (\mum^2)', 'FontSize', 14, 'FontWeight', 'bold');
+title('C_{dx} formula vs Var(dzr) — IIR high-pass residual (a_{var}>0 only)', ...
+    'FontSize', 12, 'FontWeight', 'bold');
+legend('Location', 'northwest', 'FontSize', 9);
+set(gca, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1.5, 'Box', 'on');
+grid on;
+
+saveas(fig4, fullfile(fig_dir, 'fig_Cdx_dzr.png'));
+fprintf('Figure saved to figures/fig_Cdx_dzr.png\n');
